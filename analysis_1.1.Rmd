@@ -57,7 +57,7 @@ LoC_external_alpha <- df_1 %>% select(LoC_0004_R,LoC_0005,LoC_0006_R) %>% alpha(
 ##Tolerance for Ambiguity
 TfA_alpha <- df_1 %>% select(TfA_0001,TfA_0002,TfA_0003,TfA_0004) %>% alpha(., check.keys=TRUE, n.iter = 5000)
 
-#Entrepreneurial Skills
+#Entrepreneurial Skills 
 Entrskills_alpha <- df_1 %>% select(Entrskills_0001, Entrskills_0002, Entrskills_0003, Entrskills_0004, Entrskills_0005, Entrskills_0006, Entrskills_0007) %>% alpha(., n.iter=5000)
 
 constructs <- list(NFA_alpha, LoC_alpha, TfA_alpha, Entrskills_alpha)
