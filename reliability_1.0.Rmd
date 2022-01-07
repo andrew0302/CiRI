@@ -1,0 +1,102 @@
+---
+title: "scale reliability"
+author: "Andrew M. Demetriou"
+date: "07/1/2022"
+---
+
+```{r}
+library('here')         # file logistics
+library('haven')        # importing SPSS .sav files
+library('labelled')     # working with SPSS labels
+library('readr')        # importing .csv files
+
+library('dplyr')        # code logistics
+
+library('psych')        # internal reliability
+library('corrplot')     # visualizing correlations
+```
+
+```{r}
+root_data_file_path <- here("data_")
+data_folders        <- list.files(root_data_file_path)
+```
+
+```{r}
+##SPSS formatting
+
+#2018-2019 study
+data_file_path <- here("data_", "2018_2019_")
+data_files     <- list.files(here("data_", "2018_2019_"))
+
+#read in SPSS file
+df_2018_2019   <- read_sav(paste0(data_file_path, "/", data_files[2]))
+```
+
+```{r}
+##Income
+income <- "Netto_inkomen"
+
+##Entrepreneurial Intentions:
+intentions_vars <- c(paste0("Intention_000", seq(1,9)))
+
+#Entrepreneurial Skills 
+Entrskills_vars <- c("Entrskills_0001", "Entrskills_0002", "Entrskills_0003", "Entrskills_0004", "Entrskills_0005", "Entrskills_0006", "Entrskills_0007")
+
+##Personal Skills:
+perskills_vars <- c(paste0("Perskills_000", seq(01,09)), paste0("Perskills_00", seq(10,15)))
+
+##Need for Achievement
+NFA_vars <- c("NfA_0001","NfA_0002","NfA_0003","NfA_0004")
+
+##Locus of Control
+#reverse scoring
+df_2018_2019$LoC_0004_R <- df_2018_2019$LoC_0004*-1
+df_2018_2019$LoC_0006_R <- df_2018_2019$LoC_0006*-1
+
+LoC_vars <- c('LoC_0001','LoC_0002','LoC_0003','LoC_0004_R','LoC_0005','LoC_0006_R')
+
+#subscales
+LoC_internal_vars <- c('LoC_0001','LoC_0002','LoC_0003')
+LoC_external_vars <- c('LoC_0004_R','LoC_0005','LoC_0006_R')
+
+##Tolerance for Ambiguity
+TfA_vars <- c('TfA_0001','TfA_0002','TfA_0003','TfA_0004')
+
+##All variables of interest:
+SPSS_filter <- c(income, intentions_vars, Entrskills_vars, perskills_vars, NFA_vars, LoC_vars, TfA_vars)
+```
+
+```{r}
+results_df <- df_2018_2019 %>% select(SPSS_filter)
+```
+
+
+```{r}
+##Typeform formatting
+
+#August
+df_august_2021 <- read_csv("data_/Onboarding Form CBL - August 2021/responses.csv")
+
+questions <- colnames(df_august_2021)
+
+##Income
+df_august_2021[36]
+
+##Entrepreneurial Intentions:
+df_august_2021[38:46]
+
+##Entrepreneurial Skills:
+df_august_2021[47:53]
+
+##Personal Skills:
+df_august_2021[54:70]
+
+##NFA:71:74
+df_august_2021[71:74]
+
+##LoC:75:80
+df_august_2021[75:80]
+
+##TfA:81:84
+df_august_2021[81:84]
+```
