@@ -15,12 +15,13 @@ library('lavaan')       # for SEM analyses
 library('lavaanPlot')   # visualizing results
 
 library('psych')        # internal reliability
+
 library('corrplot')     # visualizing correlations
+library('ggplot2')
 ```
 
 ```{r}
 #intial measurements; t0
-
 data_file_path <- here("data_", "2018_2019_")
 data_files     <- list.files(here("data_", "2018_2019_"))
 
@@ -36,7 +37,24 @@ why_df   <- df_2018_2019 %>% select(why_vars)
 why_df[is.na(why_df)] <- 0
 ```
 ```{r}
+extract_freq <- function (...) {
+  why_df %>% count(...) %>% arrange(desc(n))
+}
 
+freq_df <- apply(X = why_df, MARGIN=2, extract_freq)
+
+for(i in 1:length(freq_df)) {
+  freq_df[[i]]$Column <- names(freq_df[i])
+  names(freq_df[[i]]) <- c("Variable", "n", "Column_name")
+}
+
+freq_df <- do.call(rbind, freq_df) %>% data.frame() %>% select(Column_name,Variable,n)
+freq_df <- freq_df %>% group_by(Column_name) %>% filter(Variable == 1) %>% mutate(percent = n/38*100)
+
+freq_df %>%
+  ggplot(aes(x=Column_name, y=percent)) +
+  geom_col() +
+  theme(axis.text.x = element_text(angle = 90))
 ```
 
 
@@ -59,41 +77,41 @@ corrplot(cor(perskills_df))
 constructs:
 ```{r}
 ##Need for Achievement
-NFA_alpha <- df_1 %>% select(NfA_0001,NfA_0002,NfA_0003,NfA_0004) %>% alpha(., n.iter=5000)
+NFA_alpha <- df_2018_2019 %>% select(NfA_0001,NfA_0002,NfA_0003,NfA_0004) %>% alpha(., n.iter=5000)
 
 ##Locus of Control
 
 #reverse scoring
-df_1$LoC_0004_R <- df_1$LoC_0004*-1
-df_1$LoC_0006_R <- df_1$LoC_0006*-1
+df_2018_2019$LoC_0004_R <- df_2018_2019$LoC_0004*-1
+df_2018_2019$LoC_0006_R <- df_2018_2019$LoC_0006*-1
 
-LoC_alpha <- df_1 %>% select(LoC_0001,LoC_0002,LoC_0003,LoC_0004_R,LoC_0005,LoC_0006_R) %>% alpha(., n.iter=5000)
+LoC_alpha <- df_2018_2019 %>% select(LoC_0001,LoC_0002,LoC_0003,LoC_0004_R,LoC_0005,LoC_0006_R) %>% alpha(., n.iter=5000)
 
 #subscales
-LoC_internal_alpha <- df_1 %>% select(LoC_0001,LoC_0002,LoC_0003) %>% alpha(., n.iter=5000)
-LoC_external_alpha <- df_1 %>% select(LoC_0004_R,LoC_0005,LoC_0006_R) %>% alpha(., n.iter=5000)
+LoC_internal_alpha <- df_2018_2019 %>% select(LoC_0001,LoC_0002,LoC_0003) %>% alpha(., n.iter=5000)
+LoC_external_alpha <- df_2018_2019 %>% select(LoC_0004_R,LoC_0005,LoC_0006_R) %>% alpha(., n.iter=5000)
 
 ##Tolerance for Ambiguity
-TfA_alpha <- df_1 %>% select(TfA_0001,TfA_0002,TfA_0003,TfA_0004) %>% alpha(., check.keys=TRUE, n.iter = 5000)
+TfA_alpha <- df_2018_2019 %>% select(TfA_0001,TfA_0002,TfA_0003,TfA_0004) %>% alpha(., check.keys=TRUE, n.iter = 5000)
 
 #Entrepreneurial Skills 
-Entrskills_alpha <- df_1 %>% select(Entrskills_0001, Entrskills_0002, Entrskills_0003, Entrskills_0004, Entrskills_0005, Entrskills_0006, Entrskills_0007) %>% alpha(., n.iter=5000)
+Entrskills_alpha <- df_2018_2019 %>% select(Entrskills_0001, Entrskills_0002, Entrskills_0003, Entrskills_0004, Entrskills_0005, Entrskills_0006, Entrskills_0007) %>% alpha(., n.iter=5000)
 
 constructs <- list(NFA_alpha, LoC_alpha, TfA_alpha, Entrskills_alpha)
 construct_names <- c('NFA', 'LoC', 'TfA', 'Entrskills')
 ```
 
 ```{r}
-hist(unclass(df_1$TfA_0001))
-hist(unclass(df_1$TfA_0002))
-hist(unclass(df_1$TfA_0003))
-hist(unclass(df_1$TfA_0004))
+hist(unclass(df_2018_2019$TfA_0001))
+hist(unclass(df_2018_2019$TfA_0002))
+hist(unclass(df_2018_2019$TfA_0003))
+hist(unclass(df_2018_2019$TfA_0004))
 
 
-hist(unclass(df_1$NfA_0001))
-hist(unclass(df_1$NfA_0002))
-hist(unclass(df_1$NfA_0003))
-hist(unclass(df_1$NfA_0004))
+hist(unclass(df_2018_2019$NfA_0001))
+hist(unclass(df_2018_2019$NfA_0002))
+hist(unclass(df_2018_2019$NfA_0003))
+hist(unclass(df_2018_2019$NfA_0004))
 ```
 
 
@@ -122,17 +140,17 @@ for(i in 1:length(constructs)) {
 ```
 
 ```{r}
-NFA_fa <- df_1 %>% select(NfA_0001,NfA_0002,NfA_0003,NfA_0004) %>% fa(., rotate='varimax')
-LoC_fa <- df_1 %>% select(LoC_0001,LoC_0002,LoC_0003,LoC_0004,LoC_0005,LoC_0006) %>% fa(., rotate='varimax', nfactors=2)
-TfA_fa <- df_1 %>% select(TfA_0001,TfA_0002,TfA_0003,TfA_0004) %>% fa(., rotate='varimax')
-Entrskills_fa  <- df_1 %>% select(Entrskills_0001, Entrskills_0002, Entrskills_0003, Entrskills_0004, Entrskills_0005, Entrskills_0006, Entrskills_0007) %>% fa(., rotate='varimax')
+NFA_fa <- df_2018_2019 %>% select(NfA_0001,NfA_0002,NfA_0003,NfA_0004) %>% fa(., rotate='varimax')
+LoC_fa <- df_2018_2019 %>% select(LoC_0001,LoC_0002,LoC_0003,LoC_0004,LoC_0005,LoC_0006) %>% fa(., rotate='varimax', nfactors=2)
+TfA_fa <- df_2018_2019 %>% select(TfA_0001,TfA_0002,TfA_0003,TfA_0004) %>% fa(., rotate='varimax')
+Entrskills_fa  <- df_2018_2019 %>% select(Entrskills_0001, Entrskills_0002, Entrskills_0003, Entrskills_0004, Entrskills_0005, Entrskills_0006, Entrskills_0007) %>% fa(., rotate='varimax')
 ```
 
 
 #need for achievement
 ```{r}
 NFA_model <- ' NFA =~ NfA_0001 + NfA_0002 + NfA_0003 + NfA_0004'
-NFA_fit   <- cfa(NFA_model,data=df_1, std.lv=TRUE)
+NFA_fit   <- cfa(NFA_model,data=df_2018_2019, std.lv=TRUE)
 lavaanPlot(model=NFA_fit, node_options = list(fontname = "Helvetica"), edge_options = list(color = "grey"),coefs=TRUE, stars='latent')
 #summary(NFA_fit)
 ```
@@ -143,7 +161,7 @@ LoC_model <- ' LoC_internal =~ LoC_0001 + LoC_0002 + LoC_0003
                LoC_external =~ LoC_0004_R + LoC_0005 + LoC_0006_R
                LoC_internal ~~ LoC_external '
 
-LoC_fit   <- cfa(LoC_model,data=df_1, std.lv=TRUE)
+LoC_fit   <- cfa(LoC_model,data=df_2018_2019, std.lv=TRUE)
 lavaanPlot(model=LoC_fit, node_options = list(fontname = "Helvetica"), edge_options = list(color = "grey"), coefs=TRUE, covs=TRUE, stars='latent')
 summary(LoC_fit)
 ```
@@ -158,7 +176,7 @@ big_bad_model <-
     NFA ~~ Entrskills
 '
 
-big_bad_fit <- cfa(big_bad_model,data=df_1, std.lv=TRUE)
+big_bad_fit <- cfa(big_bad_model,data=df_2018_2019, std.lv=TRUE)
 lavaanPlot(model=big_bad_fit, node_options = list(fontname = "Helvetica"), edge_options = list(color = "grey"), coefs=TRUE, covs=TRUE, stars='latent')
 
 ```
