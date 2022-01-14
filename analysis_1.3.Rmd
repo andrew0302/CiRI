@@ -32,7 +32,22 @@ why_vars <- c(paste0("why_000", seq(1,9)), paste0("why_00", seq(10,15)))
 why_df   <- T0_df %>% select(why_vars)
 why_df[is.na(why_df)] <- 0
 
-why_quesitons <- c("To improve my personal skills", "To increase my income", "To become a (fulltime) creative entrepreneur", "To improve my entrepreneurial skills","To learn more about entrepreneurialism","To start a (creative) company","To learn how to better manage my current creative business", "To better profile myself as an entrepreneur","To start seeing myself more as an entrepreneur","Because I'm having difficulty making money from my creativity","Because I lack business knowhow","Because the time I spend on business is hurting my creativity","Because I don't have enough time to develop a long term strategy","Because I want to put a value on my creativity")
+why_questions <- c("To improve my personal skills", 
+                   "To increase my income", 
+                   "To become a (fulltime) creative entrepreneur", 
+                   "To improve my entrepreneurial skills",
+                   "To learn more about entrepreneurialism",
+                   "To start a (creative) company",
+                   "To learn how to better manage my current creative business", 
+                   "To better profile myself as an entrepreneur",
+                   "To start seeing myself more as an entrepreneur",
+                   "Because I'm having difficulty making money from my creativity",
+                   "Because I lack business knowhow",
+                   "Because the time I spend on business is hurting my creativity",
+                   "Because I don't have enough time to develop a long term strategy",
+                   "Because I want to put a value on my creativity")
+
+why_labels <- val_labels(why_df)
 ```
 
 ```{r}
@@ -55,20 +70,51 @@ freq_df %>%
   geom_col() +
   theme(axis.text.x = element_text(angle = 90))
 ```
+```{r}
+val_labels(T0_df$Belang_module)
+
+belang_df <- extract_freq(T0_df$Belang_module)
+
+colnames(belang_df) <- c("module", "n")
+
+belang_df %>%
+  ggplot(aes(x=module, y=n)) +
+  geom_col()
+```
 
 
 ```{r}
-#entrepreneurial intentions:
+##Income
+income <- "Netto_inkomen"
+
+##Entrepreneurial Intentions:
 intentions_vars <- c(paste0("Intention_000", seq(1,9)))
-intentions_df <- T0_df %>% select(intentions_vars)
 
-corrplot(cor(intentions_df))
+#Entrepreneurial Skills 
+Entrskills_vars <- c("Entrskills_0001", "Entrskills_0002", "Entrskills_0003", "Entrskills_0004", "Entrskills_0005", "Entrskills_0006", "Entrskills_0007")
 
-#personal skills:
+##Personal Skills:
 perskills_vars <- c(paste0("Perskills_000", seq(01,09)), paste0("Perskills_00", seq(10,15)))
-perskills_df <- T0_df %>% select(perskills_vars)
 
-corrplot(cor(perskills_df))
+##Need for Achievement
+NFA_vars <- c("NfA_0001","NfA_0002","NfA_0003","NfA_0004")
+
+##Locus of Control
+#reverse scoring
+#df_2018_2019$LoC_0004_R <- df_2018_2019$LoC_0004*-1
+#df_2018_2019$LoC_0006_R <- df_2018_2019$LoC_0006*-1
+
+LoC_vars <- c('LoC_0001','LoC_0002','LoC_0003','LoC_0004_R','LoC_0005','LoC_0006_R')
+
+#subscales
+LoC_internal_vars <- c('LoC_0001','LoC_0002','LoC_0003')
+LoC_external_vars <- c('LoC_0004_R','LoC_0005','LoC_0006_R')
+
+##Tolerance for Ambiguity
+TfA_vars <- c('TfA_0001','TfA_0002','TfA_0003','TfA_0004')
+
+##All variables of interest:
+SPSS_filter <- c(income, intentions_vars, Entrskills_vars, perskills_vars, NFA_vars, LoC_vars, TfA_vars)
 ```
 
 
