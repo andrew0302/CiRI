@@ -1,0 +1,168 @@
+---
+title: "initial_study"
+author: "Andrew M. Demetriou"
+date: "10/1/2021"
+---
+
+```{r}
+library('here')         # file logistics
+library('haven')        # importing SPSS .sav files
+library('labelled')     # working with SPSS labels
+
+library('dplyr')        # code logistics
+
+library('lavaan')       # for SEM analyses
+library('lavaanPlot')   # visualizing results
+
+library('psych')        # internal reliability
+library('corrplot')     # visualizing correlations
+```
+
+```{r}
+#intial measurements; t0
+
+data_file_path <- here("data_", "2018_2019_")
+data_files     <- list.files(here("data_", "2018_2019_"))
+
+#read in SPSS file
+df_2018_2019   <- read_sav(paste0(data_file_path, "/", data_files[2]))
+```
+
+```{r}
+#reasons for participating:
+why_vars <- c(paste0("why_000", seq(1,9)), paste0("why_00", seq(10,15)))
+why_df   <- df_2018_2019 %>% select(why_vars)
+
+why_df[is.na(why_df)] <- 0
+```
+```{r}
+
+```
+
+
+```{r}
+#entrepreneurial intentions:
+intentions_vars <- c(paste0("Intention_000", seq(1,9)))
+intentions_df <- df_2018_2019 %>% select(intentions_vars)
+
+corrplot(cor(intentions_df))
+
+
+#personal skills:
+perskills_vars <- c(paste0("Perskills_000", seq(01,09)), paste0("Perskills_00", seq(10,15)))
+perskills_df <- df_2018_2019 %>% select(perskills_vars)
+
+corrplot(cor(perskills_df))
+```
+
+
+constructs:
+```{r}
+##Need for Achievement
+NFA_alpha <- df_1 %>% select(NfA_0001,NfA_0002,NfA_0003,NfA_0004) %>% alpha(., n.iter=5000)
+
+##Locus of Control
+
+#reverse scoring
+df_1$LoC_0004_R <- df_1$LoC_0004*-1
+df_1$LoC_0006_R <- df_1$LoC_0006*-1
+
+LoC_alpha <- df_1 %>% select(LoC_0001,LoC_0002,LoC_0003,LoC_0004_R,LoC_0005,LoC_0006_R) %>% alpha(., n.iter=5000)
+
+#subscales
+LoC_internal_alpha <- df_1 %>% select(LoC_0001,LoC_0002,LoC_0003) %>% alpha(., n.iter=5000)
+LoC_external_alpha <- df_1 %>% select(LoC_0004_R,LoC_0005,LoC_0006_R) %>% alpha(., n.iter=5000)
+
+##Tolerance for Ambiguity
+TfA_alpha <- df_1 %>% select(TfA_0001,TfA_0002,TfA_0003,TfA_0004) %>% alpha(., check.keys=TRUE, n.iter = 5000)
+
+#Entrepreneurial Skills 
+Entrskills_alpha <- df_1 %>% select(Entrskills_0001, Entrskills_0002, Entrskills_0003, Entrskills_0004, Entrskills_0005, Entrskills_0006, Entrskills_0007) %>% alpha(., n.iter=5000)
+
+constructs <- list(NFA_alpha, LoC_alpha, TfA_alpha, Entrskills_alpha)
+construct_names <- c('NFA', 'LoC', 'TfA', 'Entrskills')
+```
+
+```{r}
+hist(unclass(df_1$TfA_0001))
+hist(unclass(df_1$TfA_0002))
+hist(unclass(df_1$TfA_0003))
+hist(unclass(df_1$TfA_0004))
+
+
+hist(unclass(df_1$NfA_0001))
+hist(unclass(df_1$NfA_0002))
+hist(unclass(df_1$NfA_0003))
+hist(unclass(df_1$NfA_0004))
+```
+
+
+```{r}
+get_alpha_ci <- function(alpha_df){
+  lower <- alpha_df$total$raw_alpha - 1.96 * alpha_df$total$ase
+  estimate <- alpha_df$total$raw_alpha
+  upper <- alpha_df$total$raw_alpha + 1.96 * alpha_df$total$ase
+
+results <- round(c(lower, estimate, upper), 2)
+return(results)
+}
+```
+
+```{r}
+alphas <- setNames(data.frame(matrix(ncol=4, nrow=0)), c('construct', 'lower', 'estimate', 'upper'))
+
+
+for(i in 1:length(constructs)) {
+  alphas[i,1] <- construct_names[i]
+  alpha_ci    <- get_alpha_ci(constructs[[i]])
+  alphas[i,2] <- alpha_ci[1]
+  alphas[i,3] <- alpha_ci[2]
+  alphas[i,4] <- alpha_ci[3]
+}
+```
+
+```{r}
+NFA_fa <- df_1 %>% select(NfA_0001,NfA_0002,NfA_0003,NfA_0004) %>% fa(., rotate='varimax')
+LoC_fa <- df_1 %>% select(LoC_0001,LoC_0002,LoC_0003,LoC_0004,LoC_0005,LoC_0006) %>% fa(., rotate='varimax', nfactors=2)
+TfA_fa <- df_1 %>% select(TfA_0001,TfA_0002,TfA_0003,TfA_0004) %>% fa(., rotate='varimax')
+Entrskills_fa  <- df_1 %>% select(Entrskills_0001, Entrskills_0002, Entrskills_0003, Entrskills_0004, Entrskills_0005, Entrskills_0006, Entrskills_0007) %>% fa(., rotate='varimax')
+```
+
+
+#need for achievement
+```{r}
+NFA_model <- ' NFA =~ NfA_0001 + NfA_0002 + NfA_0003 + NfA_0004'
+NFA_fit   <- cfa(NFA_model,data=df_1, std.lv=TRUE)
+lavaanPlot(model=NFA_fit, node_options = list(fontname = "Helvetica"), edge_options = list(color = "grey"),coefs=TRUE, stars='latent')
+#summary(NFA_fit)
+```
+
+#Locus of Control
+```{r}
+LoC_model <- ' LoC_internal =~ LoC_0001 + LoC_0002 + LoC_0003 
+               LoC_external =~ LoC_0004_R + LoC_0005 + LoC_0006_R
+               LoC_internal ~~ LoC_external '
+
+LoC_fit   <- cfa(LoC_model,data=df_1, std.lv=TRUE)
+lavaanPlot(model=LoC_fit, node_options = list(fontname = "Helvetica"), edge_options = list(color = "grey"), coefs=TRUE, covs=TRUE, stars='latent')
+summary(LoC_fit)
+```
+
+```{r}
+big_bad_model <- 
+  ' NFA =~ NfA_0001 + NfA_0002 + NfA_0003 + NfA_0004
+    LoC_internal =~ LoC_0001 + LoC_0002 + LoC_0003 
+    Entrskills =~ Entrskills_0001 + Entrskills_0002 +Entrskills_0003 + Entrskills_0004 + Entrskills_0005 + Entrskills_0006 + Entrskills_0007
+    LoC_internal ~~ NFA
+    LoC_internal ~~ Entrskills
+    NFA ~~ Entrskills
+'
+
+big_bad_fit <- cfa(big_bad_model,data=df_1, std.lv=TRUE)
+lavaanPlot(model=big_bad_fit, node_options = list(fontname = "Helvetica"), edge_options = list(color = "grey"), coefs=TRUE, covs=TRUE, stars='latent')
+
+```
+
+
+
+
