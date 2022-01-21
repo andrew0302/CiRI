@@ -12,6 +12,7 @@ library('labelled')     # working with SPSS labels
 library('dplyr')        # code logistics
 
 library('corrplot')     # visualizing correlations
+library('forcats')      # reorder bars
 library('ggplot2')      # general visualization
 ```
 
@@ -45,7 +46,8 @@ why_questions <- c("To improve my personal skills",
                    "Because I lack business knowhow",
                    "Because the time I spend on business is hurting my creativity",
                    "Because I don't have enough time to develop a long term strategy",
-                   "Because I want to put a value on my creativity")
+                   "Because I want to put a value on my creativity", 
+                   "Other")
 
 why_labels <- val_labels(why_df)
 ```
@@ -65,21 +67,37 @@ for(i in 1:length(freq_df)) {
 freq_df <- do.call(rbind, freq_df) %>% data.frame() %>% select(Column_name,Variable,n)
 freq_df <- freq_df %>% group_by(Column_name) %>% filter(Variable == 1) %>% mutate(percent = n/38*100)
 
+freq_df$questions <- why_questions
+
+freq_df$questions <- factor(freq_df$questions) %>%
+  fct_reorder(freq_df$percent)
+
+#fct_reorder(freq_df$questions, freq_df$percent)
+
 freq_df %>%
-  ggplot(aes(x=Column_name, y=percent)) +
+  ggplot(aes(x=questions, y=percent)) +
   geom_col() +
-  theme(axis.text.x = element_text(angle = 90))
+  coord_flip()
 ```
+
 ```{r}
-val_labels(T0_df$Belang_module)
+belang_df <- factor(T0_df$Belang_module, val_labels(T0_df$Belang_module))
+belang_df <- data.frame(table(belang_df))
+belang_df$module <- names(val_labels(T0_df$Belang_module))
+belang_df$time <- "T0"
+colnames(belang_df) <- c("belang_df", "frequency", "module", "time")
 
-belang_df <- extract_freq(T0_df$Belang_module)
+belang_t2 <- factor(T2_df$Belang_module, val_labels(T2_df$Belang_module))
+belang_t2 <- data.frame(table(belang_t2))
+belang_t2$module <- names(val_labels(T2_df$Belang_module))
+belang_t2$time <- "T2"
+colnames(belang_t2) <- c("belang_df", "frequency", "module", "time")
 
-colnames(belang_df) <- c("module", "n")
+belang_df <- rbind(belang_df, belang_t2)
 
 belang_df %>%
-  ggplot(aes(x=module, y=n)) +
-  geom_col()
+  ggplot(aes(x=frequency, y=module, fill=time)) +
+  geom_col(stat="identity", position = "dodge")
 ```
 
 
@@ -117,114 +135,9 @@ TfA_vars <- c('TfA_0001','TfA_0002','TfA_0003','TfA_0004')
 SPSS_filter <- c(income, intentions_vars, Entrskills_vars, perskills_vars, NFA_vars, LoC_vars, TfA_vars)
 ```
 
-
-constructs:
 ```{r}
-##Need for Achievement
-NFA_alpha <- T0_df %>% select(NfA_0001,NfA_0002,NfA_0003,NfA_0004) %>% alpha(., n.iter=5000)
-
-##Locus of Control
-
-#reverse scoring
-T0_df$LoC_0004_R <- T0_df$LoC_0004*-1
-T0_df$LoC_0006_R <- T0_df$LoC_0006*-1
-
-LoC_alpha <- T0_df %>% select(LoC_0001,LoC_0002,LoC_0003,LoC_0004_R,LoC_0005,LoC_0006_R) %>% alpha(., n.iter=5000)
-
-#subscales
-LoC_internal_alpha <- T0_df %>% select(LoC_0001,LoC_0002,LoC_0003) %>% alpha(., n.iter=5000)
-LoC_external_alpha <- T0_df %>% select(LoC_0004_R,LoC_0005,LoC_0006_R) %>% alpha(., n.iter=5000)
-
-##Tolerance for Ambiguity
-TfA_alpha <- T0_df %>% select(TfA_0001,TfA_0002,TfA_0003,TfA_0004) %>% alpha(., check.keys=TRUE, n.iter = 5000)
-
-#Entrepreneurial Skills 
-Entrskills_alpha <- T0_df %>% select(Entrskills_0001, Entrskills_0002, Entrskills_0003, Entrskills_0004, Entrskills_0005, Entrskills_0006, Entrskills_0007) %>% alpha(., n.iter=5000)
-
-constructs <- list(NFA_alpha, LoC_alpha, TfA_alpha, Entrskills_alpha)
-construct_names <- c('NFA', 'LoC', 'TfA', 'Entrskills')
+income_t0 <- T0_df %>% select(income)
+income_t1 <- T1_df %>% select(income)
+income_t2 <- T2_df %>% select(income)
 ```
-
-```{r}
-hist(unclass(T0_df$TfA_0001))
-hist(unclass(T0_df$TfA_0002))
-hist(unclass(T0_df$TfA_0003))
-hist(unclass(T0_df$TfA_0004))
-
-
-hist(unclass(T0_df$NfA_0001))
-hist(unclass(T0_df$NfA_0002))
-hist(unclass(T0_df$NfA_0003))
-hist(unclass(T0_df$NfA_0004))
-```
-
-
-```{r}
-get_alpha_ci <- function(alpha_df){
-  lower <- alpha_df$total$raw_alpha - 1.96 * alpha_df$total$ase
-  estimate <- alpha_df$total$raw_alpha
-  upper <- alpha_df$total$raw_alpha + 1.96 * alpha_df$total$ase
-
-results <- round(c(lower, estimate, upper), 2)
-return(results)
-}
-```
-
-```{r}
-alphas <- setNames(data.frame(matrix(ncol=4, nrow=0)), c('construct', 'lower', 'estimate', 'upper'))
-
-
-for(i in 1:length(constructs)) {
-  alphas[i,1] <- construct_names[i]
-  alpha_ci    <- get_alpha_ci(constructs[[i]])
-  alphas[i,2] <- alpha_ci[1]
-  alphas[i,3] <- alpha_ci[2]
-  alphas[i,4] <- alpha_ci[3]
-}
-```
-
-```{r}
-NFA_fa <- T0_df %>% select(NfA_0001,NfA_0002,NfA_0003,NfA_0004) %>% fa(., rotate='varimax')
-LoC_fa <- T0_df %>% select(LoC_0001,LoC_0002,LoC_0003,LoC_0004,LoC_0005,LoC_0006) %>% fa(., rotate='varimax', nfactors=2)
-TfA_fa <- T0_df %>% select(TfA_0001,TfA_0002,TfA_0003,TfA_0004) %>% fa(., rotate='varimax')
-Entrskills_fa  <- T0_df %>% select(Entrskills_0001, Entrskills_0002, Entrskills_0003, Entrskills_0004, Entrskills_0005, Entrskills_0006, Entrskills_0007) %>% fa(., rotate='varimax')
-```
-
-
-#need for achievement
-```{r}
-NFA_model <- ' NFA =~ NfA_0001 + NfA_0002 + NfA_0003 + NfA_0004'
-NFA_fit   <- cfa(NFA_model,data=T0_df, std.lv=TRUE)
-lavaanPlot(model=NFA_fit, node_options = list(fontname = "Helvetica"), edge_options = list(color = "grey"),coefs=TRUE, stars='latent')
-#summary(NFA_fit)
-```
-
-#Locus of Control
-```{r}
-LoC_model <- ' LoC_internal =~ LoC_0001 + LoC_0002 + LoC_0003 
-               LoC_external =~ LoC_0004_R + LoC_0005 + LoC_0006_R
-               LoC_internal ~~ LoC_external '
-
-LoC_fit   <- cfa(LoC_model,data=T0_df, std.lv=TRUE)
-lavaanPlot(model=LoC_fit, node_options = list(fontname = "Helvetica"), edge_options = list(color = "grey"), coefs=TRUE, covs=TRUE, stars='latent')
-summary(LoC_fit)
-```
-
-```{r}
-big_bad_model <- 
-  ' NFA =~ NfA_0001 + NfA_0002 + NfA_0003 + NfA_0004
-    LoC_internal =~ LoC_0001 + LoC_0002 + LoC_0003 
-    Entrskills =~ Entrskills_0001 + Entrskills_0002 +Entrskills_0003 + Entrskills_0004 + Entrskills_0005 + Entrskills_0006 + Entrskills_0007
-    LoC_internal ~~ NFA
-    LoC_internal ~~ Entrskills
-    NFA ~~ Entrskills
-'
-
-big_bad_fit <- cfa(big_bad_model,data=T0_df, std.lv=TRUE)
-lavaanPlot(model=big_bad_fit, node_options = list(fontname = "Helvetica"), edge_options = list(color = "grey"), coefs=TRUE, covs=TRUE, stars='latent')
-
-```
-
-
-
 
