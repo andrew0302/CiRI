@@ -1,0 +1,166 @@
+---
+title: "initial_study"
+author: "Andrew M. Demetriou"
+date: "10/1/2021"
+---
+
+```{r}
+library('here')         # file logistics
+#library('haven')        # importing SPSS .sav files
+#library('labelled')     # working with SPSS labels
+
+library('dplyr')        # code logistics
+
+library('corrplot')     # visualizing correlations
+library('forcats')      # reorder bars
+library('ggplot2')      # general visualization
+```
+
+```{r}
+#intial measurements; t0
+data_file_path <- here("data_")
+data_folders   <- list.files(data_file_path)
+file_name      <- "responses.csv"
+
+#read in typeform files
+T0_df <- read.csv(paste0(data_file_path, "/", data_folders[3], "/", file_name))
+T1_df <- read.csv(paste0(data_file_path, "/", data_folders[2], "/", file_name))
+```
+
+```{r}
+#colnames(T0_df)
+#participant_ID <- "Email.verification"
+
+why_vars <- c(
+ "To.improve.my.personal.skills",
+ "To.increase.my.income",
+ "To.become.a..fulltime..creative.entrepreneur",
+ "To.improve.my.entrepreneurial.skills",
+ "To.learn.more.about.entrepreneurialism",
+ "To.start.a..creative..company",
+ "To.learn.how.to.better.manage.my.current.creative.business",
+ "To.better.profile.myself.as.an.entrepreneur",
+ "To.start.seeing.myself.more.as.an.entrepreneur",
+ "Because.I.m.having.difficulty.making.money.from.my.creativity",                   
+ "Because.I.lack.business.knowhow",                   
+ "Because.the.time.I.spend.on.business.is.hurting.my.creativity",                   
+ "Because.I.don.t.have.enough.time.to.develop.a.long.term.strategy",                   
+ "Because.I.want.to.put.a.value.on.my.creativity",
+ "Other")
+```
+
+
+```{r}
+#reasons for participating:
+#why_vars <- c(paste0("why_000", seq(1,9)), paste0("why_00", seq(10,15)))
+why_df   <- T0_df %>% select(why_vars)
+why_df[is.na(why_df)] <- 0
+
+why_questions <- c("To improve my personal skills", 
+                   "To increase my income", 
+                   "To become a (fulltime) creative entrepreneur", 
+                   "To improve my entrepreneurial skills",
+                   "To learn more about entrepreneurialism",
+                   "To start a (creative) company",
+                   "To learn how to better manage my current creative business", 
+                   "To better profile myself as an entrepreneur",
+                   "To start seeing myself more as an entrepreneur",
+                   "Because I'm having difficulty making money from my creativity",
+                   "Because I lack business knowhow",
+                   "Because the time I spend on business is hurting my creativity",
+                   "Because I don't have enough time to develop a long term strategy",
+                   "Because I want to put a value on my creativity", 
+                   "Other")
+
+#why_labels <- val_labels(why_df)
+```
+
+```{r}
+extract_freq <- function (...) {
+  why_df %>% count(...) %>% arrange(desc(n))
+}
+
+freq_df <- apply(X = why_df, MARGIN=2, extract_freq)
+
+for(i in 1:length(freq_df)) {
+  freq_df[[i]]$Column <- names(freq_df[i])
+  names(freq_df[[i]]) <- c("Variable", "n", "Column_name")
+}
+
+freq_df <- do.call(rbind, freq_df) %>% data.frame() %>% select(Column_name,Variable,n)
+freq_df <- freq_df %>% group_by(Column_name) %>% filter(Variable == 1) %>% mutate(percent = n/38*100)
+
+freq_df$questions <- why_questions
+
+freq_df$questions <- factor(freq_df$questions) %>%
+  fct_reorder(freq_df$percent)
+
+#fct_reorder(freq_df$questions, freq_df$percent)
+
+freq_df %>%
+  ggplot(aes(x=questions, y=percent)) +
+  geom_col() +
+  coord_flip()
+```
+
+```{r}
+belang_df <- factor(T0_df$Belang_module, val_labels(T0_df$Belang_module))
+belang_df <- data.frame(table(belang_df))
+belang_df$module <- names(val_labels(T0_df$Belang_module))
+belang_df$time <- "T0"
+colnames(belang_df) <- c("belang_df", "frequency", "module", "time")
+
+belang_t2 <- factor(T2_df$Belang_module, val_labels(T2_df$Belang_module))
+belang_t2 <- data.frame(table(belang_t2))
+belang_t2$module <- names(val_labels(T2_df$Belang_module))
+belang_t2$time <- "T2"
+colnames(belang_t2) <- c("belang_df", "frequency", "module", "time")
+
+belang_df <- rbind(belang_df, belang_t2)
+
+belang_df %>%
+  ggplot(aes(x=frequency, y=module, fill=time)) +
+  geom_col(stat="identity", position = "dodge")
+```
+
+
+```{r}
+##Income
+income <- "Netto_inkomen"
+
+##Entrepreneurial Intentions:
+intentions_vars <- c(paste0("Intention_000", seq(1,9)))
+
+#Entrepreneurial Skills 
+Entrskills_vars <- c("Entrskills_0001", "Entrskills_0002", "Entrskills_0003", "Entrskills_0004", "Entrskills_0005", "Entrskills_0006", "Entrskills_0007")
+
+##Personal Skills:
+perskills_vars <- c(paste0("Perskills_000", seq(01,09)), paste0("Perskills_00", seq(10,15)))
+
+##Need for Achievement
+NFA_vars <- c("NfA_0001","NfA_0002","NfA_0003","NfA_0004")
+
+##Locus of Control
+#reverse scoring
+#df_2018_2019$LoC_0004_R <- df_2018_2019$LoC_0004*-1
+#df_2018_2019$LoC_0006_R <- df_2018_2019$LoC_0006*-1
+
+LoC_vars <- c('LoC_0001','LoC_0002','LoC_0003','LoC_0004_R','LoC_0005','LoC_0006_R')
+
+#subscales
+LoC_internal_vars <- c('LoC_0001','LoC_0002','LoC_0003')
+LoC_external_vars <- c('LoC_0004_R','LoC_0005','LoC_0006_R')
+
+##Tolerance for Ambiguity
+TfA_vars <- c('TfA_0001','TfA_0002','TfA_0003','TfA_0004')
+
+##All variables of interest:
+SPSS_filter <- c(income, intentions_vars, Entrskills_vars, perskills_vars, NFA_vars, LoC_vars, TfA_vars)
+```
+
+```{r}
+income_t0 <- T0_df %>% select(income)
+income_t1 <- T1_df %>% select(income)
+income_t2 <- T2_df %>% select(income)
+```
+
