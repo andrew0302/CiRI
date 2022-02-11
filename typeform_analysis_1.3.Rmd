@@ -6,11 +6,9 @@ date: "10/1/2021"
 
 ```{r}
 library('here')         # file logistics
-
 library('dplyr')        # code logistics
-
 library('corrplot')     # visualizing correlations
-library('forcats')      # reorder bars
+library('forcats')      # reorder categories for bar plots
 library('ggplot2')      # general visualization
 ```
 
@@ -21,14 +19,14 @@ data_folders   <- list.files(data_file_path)
 file_name      <- "responses.csv"
 
 #read in typeform files
-T0_df <- read.csv(paste0(data_file_path, "/", data_folders[3], "/", file_name))
-T1_df <- read.csv(paste0(data_file_path, "/", data_folders[2], "/", file_name))
+T0_df <- read.csv(paste0(data_file_path, "/", data_folders[3], "/", file_name)) # "Onboarding Form CBL - August 2021"
+T1_df <- read.csv(paste0(data_file_path, "/", data_folders[2], "/", file_name)) # "CBL Feedbak Day 1 & 2"
 
 #identify participants
 participant_ID <- "Email.verification"
 ```
 
-Why do participants sign up?
+## Why do participants sign up?
 
 ```{r}
 #column names
@@ -101,7 +99,7 @@ freq_df$questions <- why_questions
 #remove row names
 rownames(freq_df) <- NULL
 
-#not sure else to fix this:
+#not sure how else to fix this:
 freq_df$X1[freq_df$X1 == 16] <- 0
 
 colnames(freq_df) <- c("not_selected", "selected", "questions")
@@ -117,7 +115,7 @@ freq_df %>%
   coord_flip()
 ```
 
-Which module to participants think is the most important?
+## Which module to participants think is the most important?
 
 ```{r}
 #select column
@@ -141,44 +139,53 @@ belang_df %>%
   geom_col(stat="identity", position = "dodge")
 ```
 
+```{r}
+reason    <- "Can.you.explain.why.you.chose....field.a3329bb5.67ab.418c.a388.237285d8ecda....."
+T0_df[reason]
+```
+How do participants make their money?
 
 ```{r}
-##Income
-income <- "Netto_inkomen"
+income <- "What.s.your.current.monthly.income"
+percent <- "Roughly..which.percentage.of.your.income.flows.from.business.or.projects.that.you.own."
 
-##Entrepreneurial Intentions:
-intentions_vars <- c(paste0("Intention_000", seq(1,9)))
+income_df <- T0_df[income]
+colnames(income_df) <- "income"
+income_df$income <- as.factor(income_df$income)
+income_df %>% ggplot(aes(x=income)) + geom_bar() + coord_flip()
 
-#Entrepreneurial Skills 
-Entrskills_vars <- c("Entrskills_0001", "Entrskills_0002", "Entrskills_0003", "Entrskills_0004", "Entrskills_0005", "Entrskills_0006", "Entrskills_0007")
+percent_df <- T0_df[percent]
+colnames(percent_df) <- "percent"
 
-##Personal Skills:
-perskills_vars <- c(paste0("Perskills_000", seq(01,09)), paste0("Perskills_00", seq(10,15)))
-
-##Need for Achievement
-NFA_vars <- c("NfA_0001","NfA_0002","NfA_0003","NfA_0004")
-
-##Locus of Control
-#reverse scoring
-#df_2018_2019$LoC_0004_R <- df_2018_2019$LoC_0004*-1
-#df_2018_2019$LoC_0006_R <- df_2018_2019$LoC_0006*-1
-
-LoC_vars <- c('LoC_0001','LoC_0002','LoC_0003','LoC_0004_R','LoC_0005','LoC_0006_R')
-
-#subscales
-LoC_internal_vars <- c('LoC_0001','LoC_0002','LoC_0003')
-LoC_external_vars <- c('LoC_0004_R','LoC_0005','LoC_0006_R')
-
-##Tolerance for Ambiguity
-TfA_vars <- c('TfA_0001','TfA_0002','TfA_0003','TfA_0004')
-
-##All variables of interest:
-SPSS_filter <- c(income, intentions_vars, Entrskills_vars, perskills_vars, NFA_vars, LoC_vars, TfA_vars)
+percent_df %>% ggplot(aes(percent)) + geom_bar() + coord_flip()
 ```
 
 ```{r}
-income_t0 <- T0_df %>% select(income)
-income_t1 <- T1_df %>% select(income)
-income_t2 <- T2_df %>% select(income)
+income_sources <- "Which.of.your.activities.provides.you.with.the.bigger.part.of.your.monthly.income"
+T0_df[income_sources]
+```
+
+```{r}
+##Entrepreneurial Intentions:
+ent_int_df <- T0_df[38:46]
+
+##Entrepreneurial Skills:
+df_august_2021[47:53]
+
+##Personal Skills:
+df_august_2021[54:70]
+
+##NFA:71:74
+df_august_2021[71:74]
+
+##LoC:75:80
+df_august_2021[75:80]
+
+##TfA:81:84
+df_august_2021[81:84]
+```
+
+```{r}
+ent_int_df
 ```
 
