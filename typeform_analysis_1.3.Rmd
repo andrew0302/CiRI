@@ -4,15 +4,18 @@ author: "Andrew M. Demetriou"
 date: "10/1/2021"
 ---
 
-```{r}
+```{r setup, include = FALSE}
 library('here')         # file logistics
 library('dplyr')        # code logistics
 library('corrplot')     # visualizing correlations
 library('forcats')      # reorder categories for bar plots
 library('ggplot2')      # general visualization
+library('knitr')        # report generation
+
+knitr::opts_chunk$set(echo = FALSE)
 ```
 
-```{r}
+```{r file_import, include = FALSE}
 #intial measurements; t0
 data_file_path <- here("data_")
 data_folders   <- list.files(data_file_path)
@@ -26,9 +29,9 @@ T1_df <- read.csv(paste0(data_file_path, "/", data_folders[2], "/", file_name)) 
 participant_ID <- "Email.verification"
 ```
 
-## Why do participants sign up?
+# Why do participants sign up?
 
-```{r}
+```{r why_questions, include = FALSE}
 #column names
 why_vars <- c(
  "To.improve.my.personal.skills",
@@ -67,7 +70,7 @@ why_questions <- c(
 ```
 
 
-```{r}
+```{r why_dataframe, inlcude = FALSE}
 #select columns
 why_df   <- T0_df %>% select(participant_ID, why_vars)
 
@@ -85,8 +88,7 @@ why_df[, 2:15] <- lapply(why_df[, 2:15], factor)
 rm(why_as_numeric)
 ```
 
-
-```{r}
+```{r why_plot}
 #extract frequencies from each column in dataframe
 freq_df <- mapply(table, why_df[, 2:16])
 
@@ -117,7 +119,7 @@ freq_df %>%
 
 ## Which module to participants think is the most important?
 
-```{r}
+```{r belang}
 #select column
 belang_df <- factor(T0_df$Which.component.of.this.program.do.you.consider.most.valuable.to.you.at.this.point.)
 
@@ -139,13 +141,14 @@ belang_df %>%
   geom_col(stat="identity", position = "dodge")
 ```
 
-```{r}
+```{r reason_table}
 reason    <- "Can.you.explain.why.you.chose....field.a3329bb5.67ab.418c.a388.237285d8ecda....."
-T0_df[reason]
+reasons <- T0_df[reason]
+#kable(reasons, col.names = "Reasons", align = "l", caption="")
 ```
 How do participants make their money?
 
-```{r}
+```{r income, fig.align= 'left'}
 income <- "What.s.your.current.monthly.income"
 percent <- "Roughly..which.percentage.of.your.income.flows.from.business.or.projects.that.you.own."
 
@@ -153,39 +156,51 @@ income_df <- T0_df[income]
 colnames(income_df) <- "income"
 income_df$income <- as.factor(income_df$income)
 income_df %>% ggplot(aes(x=income)) + geom_bar() + coord_flip()
+```
 
+```{r percent, fig.align= 'left'}
 percent_df <- T0_df[percent]
 colnames(percent_df) <- "percent"
 
 percent_df %>% ggplot(aes(percent)) + geom_bar() + coord_flip()
 ```
 
-```{r}
+
+```{r income_sources}
 income_sources <- "Which.of.your.activities.provides.you.with.the.bigger.part.of.your.monthly.income"
-T0_df[income_sources]
+sources <- T0_df[income_sources]
+#kable(reasons, col.names = "Reasons", align = "l", caption="")
 ```
 
 ```{r}
+##Entrepreneurial Skills:
+#df_august_2021[47:53]
+
+##Personal Skills:
+#df_august_2021[54:70]
+
+##NFA:71:74
+#df_august_2021[71:74]
+
+##LoC:75:80
+#df_august_2021[75:80]
+
+##TfA:81:84
+#df_august_2021[81:84]
+```
+
+```{r entrepreneurial_intentions}
 ##Entrepreneurial Intentions:
 ent_int_df <- T0_df[38:46]
 
-##Entrepreneurial Skills:
-df_august_2021[47:53]
+#replace blank strings with NA
+ent_int_df[ent_int_df==""] <-NA
 
-##Personal Skills:
-df_august_2021[54:70]
-
-##NFA:71:74
-df_august_2021[71:74]
-
-##LoC:75:80
-df_august_2021[75:80]
-
-##TfA:81:84
-df_august_2021[81:84]
-```
-
-```{r}
-ent_int_df
+#replace responses with numbers
+ent_int_df[ent_int_df=="Totally agree"] <-5
+ent_int_df[ent_int_df=="Agree"] <-4
+ent_int_df[ent_int_df=="Neutral"] <-3
+ent_int_df[ent_int_df=="Disagree"] <-2
+ent_int_df[ent_int_df=="Totally disagree"] <-1
 ```
 
