@@ -1,8 +1,10 @@
 ---
-title: "initial_study"
+title: "Impact Analysis 2018-2019"
 author: "Andrew M. Demetriou"
-date: "`r Sys.Date()`"
-output: html_document
+date: "`r format(Sys.time(), '%d %B %Y')`"
+output: 
+  html_document:
+          toc: true
 ---
 
 ```{r setup, include=FALSE}
@@ -18,29 +20,41 @@ library('ggplot2')      # general visualization
 library('knitr')        # report generation
 
 knitr::opts_chunk$set(include = FALSE, echo=FALSE)
+
+#color scheme
+ciri_colors <- c('#fe7241', '#ae5944', '#543c4a', '#67444a')
 ```
 
 ```{r import_data}
-#SPSS data file paths
+#SPSS data file path
 data_file_path <- here("data_", "2018_2019_")
+
+#create a list of all files
 data_files     <- list.files(here("data_", "2018_2019_"))
 
 #read in SPSS files
 T0_df <- read_sav(paste0(data_file_path, "/", data_files[3]))
 T1_df <- read_sav(paste0(data_file_path, "/", data_files[4]))
 T2_df <- read_sav(paste0(data_file_path, "/", data_files[5]))
-
-#T0_df <- read_spss(paste0(data_file_path, "/", data_files[3]))
-#T0_df$Netto_inkomen
 ```
 
+
+# Dataset  
+
+Observations included in the analysis were collected 2018-2019 (n=38), by Erasmus University Rotterdam in collaboration with CIRI. Participants completed an initial survey, a short follow-up immediately after the intervention, and a third survey designed to function as an impact measurement 6 months later. 
+
 ```{r why_df}
-#reasons for participating:
+#variables representing reasons for participating are labelled as follows:
 why_vars <- c(paste0("why_000", seq(1,9)), paste0("why_00", seq(10,15)))
+
+#filter dataframe at T0 for the 'why' variables
+#where each reason is a column, with a 1 or a 0 indicating whether or not it was selected
 why_df   <- T0_df %>% select(why_vars)
+#replace NAs with 0s
 why_df[is.na(why_df)] <- 0
 
-why_questions <- c("To improve my personal skills", 
+#'why' items (in English)
+why_reasons <- c("To improve my personal skills", 
                    "To increase my income", 
                    "To become a (fulltime) creative entrepreneur", 
                    "To improve my entrepreneurial skills",
@@ -56,40 +70,62 @@ why_questions <- c("To improve my personal skills",
                    "Because I want to put a value on my creativity", 
                    "Other")
 
+# the question labels are formatted differently in the SPSS file:
 why_labels <- val_labels(why_df)
 ```
 
-```{r why_df_visualization, include=TRUE}
+## Participant Motivations
+
+We first examine participants' reasons for choosing to attend the seminar series. Participants were asked 'Waarom heb je je aangemeld voor dit programma?", shown the options listed in Figure 1 (originally in Dutch), and were asked to select all that applied. 
+
+```{r why_df_visualization, include=TRUE, fig.align='left', fig.cap="Figure 1: Reasons selected for participating in an intervention, translated to English. Percentage indicates the percent of participants that selected the item."}
+#function to count and re-arrange by frequency of response
 extract_freq <- function (...) {
   why_df %>% count(...) %>% arrange(desc(n))
 }
 
+#apply custom function to out frequency dataframe
+#this creates a list of tibbles with frequency counts
+#one for each reason 'why'
 freq_df <- apply(X = why_df, MARGIN=2, extract_freq)
 
+#rename the columns of each item in the list
 for(i in 1:length(freq_df)) {
   freq_df[[i]]$Column <- names(freq_df[i])
   names(freq_df[[i]]) <- c("Variable", "n", "Column_name")
 }
 
+#merge list items into a single df
 freq_df <- do.call(rbind, freq_df) %>% data.frame() %>% select(Column_name,Variable,n)
-freq_df <- freq_df %>% group_by(Column_name) %>% filter(Variable == 1) %>% mutate(percent = n/38*100)
 
-freq_df$questions <- why_questions
+#only include rows that indicate that the reason was selected
+#add a row indicate a percentage based on whether or not the item was selected
+freq_df <- freq_df %>% group_by(Column_name) %>% filter(Variable == 1) %>% mutate(percent = round(n/38*100, digits = 1))
 
-freq_df$questions <- factor(freq_df$questions) %>%
+#add reasons to datafame translated to English
+freq_df$reasons <- why_reasons
+
+#put rows in descending order based on percentage
+freq_df$reasons <- factor(freq_df$reasons) %>%
   fct_reorder(freq_df$percent)
 
-#fct_reorder(freq_df$questions, freq_df$percent)
-
+#plot results
 freq_df %>%
-  ggplot(aes(x=questions, y=percent)) +
-  geom_col() +
-  coord_flip()
+  ggplot(aes(x=reasons, y=percent)) +
+  geom_col(fill=ciri_colors[2]) +
+  coord_flip() +
+  scale_x_discrete("",position = "top") +
+  scale_y_continuous("Percentage") +
+  theme_minimal()
 
-rm(why_df, why_labels, freq_df)
+most_selected_reason <- freq_df %>% filter(percent == max(freq_df$percent))
+
+#rm(why_df, why_labels, freq_df)
 ```
 
-```{r important_modules_df, include=TRUE}
+The most selected reason was "`r most_selected_reason$reasons`", chosen by __`r most_selected_reason$percent`__% of participants. 
+
+```{r important_modules_df, include=TRUE, fig.align='left', fig.cap="Figure 2: Self-reported module importance at two time-points. Frequency indicates the number of participants that indicated that the module was the most important at the given time point."}
 belang_df <- factor(T0_df$Belang_module, val_labels(T0_df$Belang_module))
 belang_df <- data.frame(table(belang_df))
 belang_df$module <- names(val_labels(T0_df$Belang_module))
@@ -109,7 +145,11 @@ belang_df$module <- factor(belang_df$module) %>%
 
 belang_df %>%
   ggplot(aes(x=frequency, y=module, fill=time)) +
-  geom_col(position = "dodge")
+  geom_col(position = "dodge") +
+  scale_fill_manual(values=ciri_colors) + 
+  scale_y_discrete("", position = "right") +
+  scale_x_continuous("Frequency") +
+  theme_minimal()
 
 rm(belang_t2, belang_df)
 ```
@@ -122,6 +162,8 @@ reasons
 
 rm(reasons)
 ```
+
+## Net Income
 
 ```{r income_df}
 ##Income
@@ -160,17 +202,20 @@ is_outlier <- function(x) {
 }
 
 income_long <- income_long %>% 
+  filter(income != 11) %>%
   group_by(time) %>%
-  mutate(outlier = if_else(is_outlier(income), participant_ID, NA_character_))
+  mutate(outlier = if_else(is_outlier(income), participant_ID, NA_character_)) 
 
 rm(income_t0,income_t1,income_t2)
 ```
 
 ```{r income_df_visualization, include=TRUE}
 income_long %>%
-  ggplot(aes(x=time, y=income, color=time)) +
+  ggplot(aes(x=time, y=income, fill=time)) +
     geom_boxplot(show.legend=FALSE) +
-    geom_text(aes(label=outlier), position= position_dodge(width=1), na.rm=TRUE, show.legend=FALSE)
+    scale_fill_manual(values=ciri_colors) +
+    theme_minimal() 
+    #geom_text(aes(label=outlier), position= position_dodge(width=1), na.rm=TRUE, show.legend=FALSE)
 ```
 
 
@@ -207,3 +252,4 @@ SPSS_filter <- c(income, intentions_vars, Entrskills_vars, perskills_vars, NFA_v
 
 
 
+![](image_files/ciri_logo.jpg)
