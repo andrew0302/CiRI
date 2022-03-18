@@ -249,6 +249,34 @@ income_long %>%
   theme_minimal() +
   theme(axis.title.y = element_blank(), axis.title.x = element_blank())
 ```
+```{r income_df_visualization, include=TRUE, fig.cap="Figure 3: Self-reported Net Income in 2018-2019 Euros at three time-points."}
+income_long %>%
+  ggplot(aes(x=time, y=income, fill=time)) +
+    scale_fill_manual(values=ciri_colors) +
+    geom_boxplot(
+      show.legend = FALSE,
+      width = .12, 
+      coef = 0, 
+      outlier.color = NA
+    )  +
+    gghalves::geom_half_point(
+      show.legend = FALSE, 
+      side="1", 
+      range_scale=.4,
+      alpha = .3
+      ) +
+   scale_y_continuous(
+     position = "right",
+     breaks = seq(1, 9, by = 1),
+     labels = c(
+       "<1000", "1000-1500", "1500-2000", 
+       "2000-2500", "2500-3000", "3000-3500", 
+       "3500-4000", "4000-4500", ">5000")
+     ) +
+  theme_minimal() +
+  theme(axis.title.y = element_blank(), axis.title.x = element_blank())
+```
+
 ```{r income_df_visualization, include=TRUE, fig.cap="Figure 4: Self-reported Net Income in 2018-2019 Euros at two time-points."}
 
 set.seed(321)
