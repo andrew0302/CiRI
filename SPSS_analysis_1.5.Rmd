@@ -181,7 +181,7 @@ ID <- "Accountnummer"
 # labels for income brackets
 labels <- val_labels(T0_df$Netto_inkomen)
 
-
+#create a df for income at each time point
 income_t0 <- T0_df %>% select(ID, income)
 colnames(income_t0) <- c("participant_ID", "T0")
 
@@ -190,12 +190,39 @@ colnames(income_t1) <- c("participant_ID", "T1")
 
 income_t2 <- T2_df %>% select(ID, income)
 colnames(income_t2) <- c("participant_ID", "T2")
+```
 
-#income_wide <- merge(x = income_t0, y = income_t1, by="participant_ID", all=TRUE)
-#income_wide <- merge(x = income, y = income_t2, by="participant_ID", all=TRUE)
-#rm(income_wide)
+```{r income_wide_df}
+# merge into wide format
+income_wide <- merge(x = income_t0, y = income_t1, by="participant_ID", all=TRUE)
+
+income_wide <- merge(x = income_wide, y = income_t2, by="participant_ID", all=TRUE)
+
+# replace '11' with NA
+income_wide$T0 <- na_if(income_wide$T0, 11)
+income_wide$T1 <- na_if(income_wide$T1, 11)
+income_wide$T2 <- na_if(income_wide$T2, 11)
+
+# compute differences in time points
+income_wide$t1_delta <- income_wide$T1 - income_wide$T0
+income_wide$t2_delta <- income_wide$T2 - income_wide$T0
+
+# create factor for results
+income_wide <- income_wide %>% 
+  mutate(t1_result = ifelse(t1_delta == 0, 0, 
+                     ifelse(t1_delta > 0, "profit", "loss")))
+
+income_wide <- income_wide %>%
+  mutate(t2_result = ifelse(t2_delta == 0, 0, 
+                     ifelse(t2_delta > 0, "profit", "loss")))
+
+as.data.frame(table(income_wide$t1_result))
+as.data.frame(table(income_wide$t2_result))
+```
 
 
+```{r income_long_df}
+# create long format df
 income_t0$time <- "T0"
 income_t1$time <- "T1"
 income_t2$time <- "T2"
@@ -203,8 +230,6 @@ colnames(income_t0) <- c("participant_ID", "income", "time")
 colnames(income_t1) <- c("participant_ID", "income", "time")
 colnames(income_t2) <- c("participant_ID", "income", "time")
 income_long <- rbind(income_t0, income_t1,income_t2)
-
-#income_long$income 
 
 is_outlier <- function(x) {
   return(x < quantile(x, 0.25, na.rm=TRUE) - 1.5 * IQR(x, na.rm=TRUE) | x > quantile(x, 0.75, na.rm=TRUE) + 1.5 * IQR(x, na.rm=TRUE))
@@ -259,6 +284,37 @@ check_model(mod)
 summary(mod)
 ```
 
+```{r}
+
+```
+
+
+
+```{r}
+#ggplot(income_long, aes(x=time, y=income)) +
+#  geom_line(aes(color = participant_ID, group = participant_ID)) +
+#  geom_point(position = "jitter")
+
+income_long %>%
+  ggplot(aes(x=time, y=income, fill=time)) +
+    scale_fill_manual(values=ciri_colors) +
+    geom_point(
+      show.legend = FALSE, 
+      alpha = .3
+      ) +
+   scale_y_continuous(
+     position = "right",
+     breaks = seq(1, 9, by = 1),
+     labels = c(
+       "<1000", "1000-1500", "1500-2000", 
+       "2000-2500", "2500-3000", "3000-3500", 
+       "3500-4000", "4000-4500", ">5000")
+     ) +
+  theme_minimal() +
+  theme(axis.title.y = element_blank(), axis.title.x = element_blank())
+
+#t <- income_long %>% group_by(time) %>% summarize(mean = mean_cl_boot(income))
+```
 
 
 ```{r}
