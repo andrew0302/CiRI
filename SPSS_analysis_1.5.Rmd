@@ -25,6 +25,9 @@ library('knitr')        # report generation
 library('lme4')         # multilevel modelling
 library('lmerTest')     # add statistical tests
 library('performance')  # checking assumptions
+library('broom.mixed')
+
+
 
 knitr::opts_chunk$set(include = FALSE, echo=FALSE)
 
@@ -279,13 +282,27 @@ income_long %>%
 ```
 
 ```{r}
-mod <- lmer(income ~ time + (1|participant_ID), data=income_long)
+mod <- lmer(income ~ time + (1|participant_ID), data=income_long) #%>% broom.mixed::tidy()
 check_model(mod)
-summary(mod)
+summary(mod) 
 ```
 
+```{r format results}
+fixed <- as.data.frame(fixef(mod)) %>% tibble::rownames_to_column()
+#confint <- confint(mod)
+confint <- as.data.frame(confint.merMod(mod, level=.95, method="boot", nsim=500)) %>% tibble::rownames_to_column()
+results <- merge(fixed, confint, by = 'rowname') #%>% filter(rowname != '(Intercept)')
+colnames(results) <- c("time", "estimate", "lower", "upper")
+results$time <- c("T0", "T1", "T2")
+results[2,2:4] <- results[2,2:4] + results[1,2:4]
+results[3,2:4] <- results[3,2:4] + results[1,2:4]
+```
 ```{r}
-
+results %>% 
+  ggplot(aes(x=time, y=estimate)) +
+  geom_errorbar(aes(ymin = lower, ymax = upper), position="dodge") +
+  geom_point() +
+  theme_minimal()
 ```
 
 

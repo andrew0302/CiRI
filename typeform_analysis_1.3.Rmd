@@ -29,6 +29,13 @@ T1_df <- read.csv(paste0(data_file_path, "/", data_folders[2], "/", file_name)) 
 participant_ID <- "Email.verification"
 ```
 
+```{r}
+#extract variables
+#t <- colnames(T0_df)
+#write.csv(as.data.frame(t), "columns.csv")
+```
+
+
 # Why do participants sign up?
 
 ```{r why_questions, include = FALSE}
@@ -175,6 +182,7 @@ sources <- T0_df[income_sources]
 ```{r}
 ##Entrepreneurial Skills:
 #df_august_2021[47:53]
+T0_df[47:53]
 
 ##Personal Skills:
 #df_august_2021[54:70]
