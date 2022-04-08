@@ -25,9 +25,9 @@ library('knitr')        # report generation
 library('lme4')         # multilevel modelling
 library('lmerTest')     # add statistical tests
 library('performance')  # checking assumptions
-library('broom.mixed')
+library('broom.mixed')  # tibbles from model output
 
-
+library('naniar')       # missingness
 
 knitr::opts_chunk$set(include = FALSE, echo=FALSE)
 
@@ -46,6 +46,8 @@ data_files     <- list.files(here("data_", "2018_2019_"))
 T0_df <- read_sav(paste0(data_file_path, "/", data_files[3]))
 T1_df <- read_sav(paste0(data_file_path, "/", data_files[4]))
 T2_df <- read_sav(paste0(data_file_path, "/", data_files[5]))
+
+rm(data_file_path, data_files)
 ```
 
 
@@ -129,8 +131,9 @@ freq_df %>%
   theme_minimal()
 
 most_selected_reason <- freq_df %>% filter(percent == max(freq_df$percent))
+most_selected_reason
 
-#rm(why_df, why_labels, freq_df)
+rm(why_df, why_labels, freq_df, most_selected_reason, i, why_reasons, why_vars)
 ```
 
 The most selected reason was "`r most_selected_reason$reasons`", chosen by __`r most_selected_reason$percent`__% of participants. 
@@ -170,7 +173,7 @@ reasons <- T0_df[reason]
 #kable(reasons, col.names = "Reasons", align = "l", caption="")
 reasons
 
-rm(reasons)
+rm(reasons, reason)
 ```
 
 ## Net Income
@@ -206,22 +209,41 @@ income_wide$T0 <- na_if(income_wide$T0, 11)
 income_wide$T1 <- na_if(income_wide$T1, 11)
 income_wide$T2 <- na_if(income_wide$T2, 11)
 
+#rm(income_t0, income_t1, income_t2)
+```
+
+```{r analyze_missingness}
+income_wide %>%
+  select(T0, T1, T2) %>%
+  miss_var_summary()
+
+income_wide %>%
+  select(T0, T1, T2) %>%
+  gg_miss_var()
+```
+```{r}
+income_long <- 
+```
+
+
+```{r income_delta_df}
 # compute differences in time points
 income_wide$t1_delta <- income_wide$T1 - income_wide$T0
 income_wide$t2_delta <- income_wide$T2 - income_wide$T0
 
 # create factor for results
 income_wide <- income_wide %>% 
-  mutate(t1_result = ifelse(t1_delta == 0, 0, 
+  mutate(t1_result = ifelse(t1_delta == 0, "neutral", 
                      ifelse(t1_delta > 0, "profit", "loss")))
 
 income_wide <- income_wide %>%
-  mutate(t2_result = ifelse(t2_delta == 0, 0, 
+  mutate(t2_result = ifelse(t2_delta == 0, "neutral", 
                      ifelse(t2_delta > 0, "profit", "loss")))
 
 as.data.frame(table(income_wide$t1_result))
 as.data.frame(table(income_wide$t2_result))
 ```
+
 
 
 ```{r income_long_df}
