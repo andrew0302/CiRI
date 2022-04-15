@@ -8,12 +8,14 @@ output:
 ---
 
 ```{r setup, include=FALSE}
+library('knitr')        # report generation
+
 library('here')         # file logistics
 library('haven')        # importing SPSS .sav files
 library('labelled')     # working with SPSS labels
 
 library('dplyr')        # code logistics
-library("tidyr")        # pivoting
+library('tidyr')        # pivoting
 
 library('ggplot2')      # general visualization
 library('ggdist')       # raincloud plotting
@@ -21,14 +23,15 @@ library('gghalves')     # raincloud plotting
 library('corrplot')     # visualizing correlations
 library('forcats')      # reorder bars
 
-library('knitr')        # report generation
+library('naniar')       # missingness
+
+library('psych')        # reliability analysis
 
 library('lme4')         # multilevel modelling
 library('lmerTest')     # add statistical tests
 library('performance')  # checking assumptions
 library('broom.mixed')  # tibbles from model output
 
-library('naniar')       # missingness
 
 knitr::opts_chunk$set(include = FALSE, echo=FALSE)
 
@@ -263,6 +266,7 @@ income_long %>%
   theme_minimal() +
   theme(axis.title.y = element_blank(), axis.title.x = element_blank())
 ```
+### Change in Income
 
 ```{r income_delta_df}
 # compute differences in time points
@@ -364,12 +368,15 @@ results %>%
   theme_minimal() +
   theme(axis.title.y = element_blank(), axis.title.x = element_blank())
 ```
+### Constructs
 
-```{r}
+```{r constructs_df}
+Accountnummer <- 'Accountnummer'
+
 ##Entrepreneurial Intentions:
 intentions_vars <- c(paste0("Intention_000", seq(1,9)))
 
-#Entrepreneurial Skills 
+##Entrepreneurial Skills 
 Entrskills_vars <- c("Entrskills_0001", "Entrskills_0002", "Entrskills_0003", "Entrskills_0004", "Entrskills_0005", "Entrskills_0006", "Entrskills_0007")
 
 ##Personal Skills:
@@ -379,21 +386,47 @@ perskills_vars <- c(paste0("Perskills_000", seq(01,09)), paste0("Perskills_00", 
 NFA_vars <- c("NfA_0001","NfA_0002","NfA_0003","NfA_0004")
 
 ##Locus of Control
-#reverse scoring
-#df_2018_2019$LoC_0004_R <- df_2018_2019$LoC_0004*-1
-#df_2018_2019$LoC_0006_R <- df_2018_2019$LoC_0006*-1
-
-LoC_vars <- c('LoC_0001','LoC_0002','LoC_0003','LoC_0004_R','LoC_0005','LoC_0006_R')
+LoC_vars <- c('LoC_0001','LoC_0002','LoC_0003','LoC_0004','LoC_0005','LoC_0006')
 
 #subscales
-LoC_internal_vars <- c('LoC_0001','LoC_0002','LoC_0003')
-LoC_external_vars <- c('LoC_0004_R','LoC_0005','LoC_0006_R')
+#LoC_internal_vars <- c('LoC_0001','LoC_0002','LoC_0003')
+#LoC_external_vars <- c('LoC_0004_R','LoC_0005','LoC_0006_R')
 
 ##Tolerance for Ambiguity
 TfA_vars <- c('TfA_0001','TfA_0002','TfA_0003','TfA_0004')
 
-##All variables of interest:
-SPSS_filter <- c(income, intentions_vars, Entrskills_vars, perskills_vars, NFA_vars, LoC_vars, TfA_vars)
+#assemble df
+T0_constructs_df <- T0_df[c(Accountnummer, intentions_vars, Entrskills_vars, perskills_vars, NFA_vars, LoC_vars, TfA_vars)]
+T1_constructs_df <- T1_df[c(Accountnummer, intentions_vars, Entrskills_vars, perskills_vars, NFA_vars, LoC_vars, TfA_vars)]
+T2_constructs_df <- T2_df[c(Accountnummer, intentions_vars, Entrskills_vars, perskills_vars, NFA_vars, LoC_vars, TfA_vars)]
+
+#Locus of Control Reverse Scoring
+T0_constructs_df$LoC_0004 <- T0_constructs_df$LoC_0004 * -1
+T0_constructs_df$LoC_0006 <- T0_constructs_df$LoC_0006 * -1
+
+T1_constructs_df$LoC_0004 <- T1_constructs_df$LoC_0004 * -1
+T1_constructs_df$LoC_0006 <- T1_constructs_df$LoC_0006 * -1
+
+T2_constructs_df$LoC_0004 <- T2_constructs_df$LoC_0004 * -1
+T2_constructs_df$LoC_0006 <- T2_constructs_df$LoC_0006 * -1
+```
+
+```{r get_alpha_function}
+#get_alpha_ci <- function(df){
+#  alpha <- psych::alpha(df, n.iter=500)
+#  return(alpha$boot.ci)
+#}
+
+get_alpha_ci <- function(df, var_set){
+  alpha <- psych::alpha(df[var_set], n.iter=500)
+  alpha_ci <- alpha$boot.ci %>% rename(var_set = x)
+  return(alpha_ci)
+}
+```
+
+```{r assemble_alpha_df}
+
+get_alpha_ci(T0_constructs_df, Entrskills_vars)
 ```
 
 
