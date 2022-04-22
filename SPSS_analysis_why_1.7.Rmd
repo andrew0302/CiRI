@@ -1,0 +1,165 @@
+---
+title: "Impact Analysis, 'why', 2018-2019"
+author: "Andrew M. Demetriou"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+output: 
+  html_document:
+          toc: true
+---
+
+```{r why_setup, include=FALSE}
+library('knitr')        # report generation
+
+library('here')         # file logistics
+library('haven')        # importing SPSS .sav files
+library('labelled')     # working with SPSS labels
+
+library('dplyr')        # code logistics
+library('tidyr')        # pivoting
+
+library('ggplot2')      # general visualization
+library('forcats')      # reorder bars
+
+knitr::opts_chunk$set(include = FALSE, echo=FALSE)
+
+#color scheme
+ciri_colors <- c('#fe7241', '#ae5944', '#543c4a', '#67444a')
+```
+
+```{r why_import_data}
+#SPSS data file path
+data_file_path <- here("data_", "2018_2019_")
+
+#create a list of all files
+data_files     <- list.files(here("data_", "2018_2019_"))
+
+#read in SPSS files
+T0_df <- read_sav(paste0(data_file_path, "/", data_files[3]))
+T1_df <- read_sav(paste0(data_file_path, "/", data_files[4]))
+T2_df <- read_sav(paste0(data_file_path, "/", data_files[5]))
+
+rm(data_file_path, data_files)
+```
+
+```{r why_df}
+#variables representing reasons for participating are labelled as follows:
+why_vars <- c(paste0("why_000", seq(1,9)), paste0("why_00", seq(10,15)))
+
+#filter dataframe at T0 for the 'why' variables
+#where each reason is a column, with a 1 or a 0 indicating whether or not it was selected
+why_df   <- T0_df %>% select(why_vars)
+#replace NAs with 0s
+why_df[is.na(why_df)] <- 0
+
+#'why' items (in English)
+why_reasons <- c("To improve my personal skills", 
+                   "To increase my income", 
+                   "To become a (fulltime) creative entrepreneur", 
+                   "To improve my entrepreneurial skills",
+                   "To learn more about entrepreneurialism",
+                   "To start a (creative) company",
+                   "To learn how to better manage my current creative business", 
+                   "To better profile myself as an entrepreneur",
+                   "To start seeing myself more as an entrepreneur",
+                   "Because I'm having difficulty making money from my creativity",
+                   "Because I lack business knowhow",
+                   "Because the time I spend on business is hurting my creativity",
+                   "Because I don't have enough time to develop a long term strategy",
+                   "Because I want to put a value on my creativity", 
+                   "Other")
+
+# the question labels are formatted differently in the SPSS file:
+why_labels <- val_labels(why_df)
+```
+
+## Participant Motivations
+
+Here we examine participants' reasons for choosing to attend the seminar series. Participants were asked 'Waarom heb je je aangemeld voor dit programma?", shown the options listed in Figure 1 (originally in Dutch), and were asked to select all that applied. 
+
+```{r why_df_visualization, include=TRUE, fig.align='left', fig.cap="Figure 1.1: Reasons selected for participating in an intervention, translated to English. Percentage indicates the percent of participants that selected the item."}
+#function to count and re-arrange by frequency of response
+extract_freq <- function (...) {
+  why_df %>% count(...) %>% arrange(desc(n))
+}
+
+#apply custom function to out frequency dataframe
+#this creates a list of tibbles with frequency counts
+#one for each reason 'why'
+freq_df <- apply(X = why_df, MARGIN=2, extract_freq)
+
+#rename the columns of each item in the list
+for(i in 1:length(freq_df)) {
+  freq_df[[i]]$Column <- names(freq_df[i])
+  names(freq_df[[i]]) <- c("Variable", "n", "Column_name")
+}
+
+#merge list items into a single df
+freq_df <- do.call(rbind, freq_df) %>% data.frame() %>% select(Column_name,Variable,n)
+
+#only include rows that indicate that the reason was selected
+#add a row indicate a percentage based on whether or not the item was selected
+freq_df <- freq_df %>% group_by(Column_name) %>% filter(Variable == 1) %>% mutate(percent = round(n/38*100, digits = 1))
+
+#add reasons to datafame translated to English
+freq_df$reasons <- why_reasons
+
+#put rows in descending order based on percentage
+freq_df$reasons <- factor(freq_df$reasons) %>%
+  fct_reorder(freq_df$percent)
+
+#plot results
+freq_df %>%
+  ggplot(aes(x=reasons, y=percent)) +
+  geom_col(fill=ciri_colors[2]) +
+  coord_flip() +
+  scale_x_discrete("",position = "top") +
+  scale_y_continuous("Percentage") +
+  theme_minimal()
+
+most_selected_reason <- freq_df %>% filter(percent == max(freq_df$percent))
+#most_selected_reason
+
+rm(why_df, why_labels, freq_df, i, why_reasons, why_vars)
+```
+
+The most selected reason was "`r most_selected_reason$reasons`", chosen by __`r most_selected_reason$percent`__% of participants. 
+
+
+
+```{r important_modules_df, include=TRUE, fig.align='left', fig.cap="Figure 1.2: Self-reported module importance at two time-points. Frequency indicates the number of participants that indicated that the module was the most important at the given time point."}
+belang_df <- factor(T0_df$Belang_module, val_labels(T0_df$Belang_module))
+belang_df <- data.frame(table(belang_df))
+belang_df$module <- names(val_labels(T0_df$Belang_module))
+belang_df$time <- "T0"
+colnames(belang_df) <- c("belang_df", "frequency", "module", "time")
+
+belang_t2 <- factor(T2_df$Belang_module, val_labels(T2_df$Belang_module))
+belang_t2 <- data.frame(table(belang_t2))
+belang_t2$module <- names(val_labels(T2_df$Belang_module))
+belang_t2$time <- "T2"
+colnames(belang_t2) <- c("belang_df", "frequency", "module", "time")
+
+belang_df <- rbind(belang_df, belang_t2)
+
+belang_df$module <- factor(belang_df$module) %>%
+  fct_reorder(belang_df$frequency)
+
+belang_df %>%
+  ggplot(aes(x=frequency, y=module, fill=time)) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values=ciri_colors) + 
+  scale_y_discrete("", position = "right") +
+  scale_x_continuous("Frequency") +
+  theme_minimal()
+
+rm(belang_t2, belang_df)
+```
+
+```{r reason_df, include=TRUE}
+reason    <- "q0004"
+reasons <- T0_df[reason]
+kable(reasons, col.names = "Reasons", align = "l", caption="")
+#reasons
+
+rm(reasons, reason)
+```

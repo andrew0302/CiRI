@@ -1,0 +1,427 @@
+---
+title: "Impact Analysis 2018-2019"
+author: "Andrew M. Demetriou"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+output: 
+  html_document:
+          toc: true
+---
+
+```{r setup, include=FALSE}
+library('knitr')        # report generation
+
+library('here')         # file logistics
+library('haven')        # importing SPSS .sav files
+library('labelled')     # working with SPSS labels
+
+library('dplyr')        # code logistics
+library('tidyr')        # pivoting
+
+library('ggplot2')      # general visualization
+library('ggdist')       # raincloud plotting
+library('gghalves')     # raincloud plotting
+library('corrplot')     # visualizing correlations
+library('forcats')      # reorder bars
+
+library('naniar')       # missingness
+
+library('psych')        # reliability analysis
+
+library('lme4')         # multilevel modelling
+library('lmerTest')     # add statistical tests
+library('performance')  # checking assumptions
+library('broom.mixed')  # tibbles from model output
+
+
+knitr::opts_chunk$set(include = FALSE, echo=FALSE)
+
+#color scheme
+ciri_colors <- c('#fe7241', '#ae5944', '#543c4a', '#67444a')
+```
+
+```{r import_data}
+#SPSS data file path
+data_file_path <- here("data_", "2018_2019_")
+
+#create a list of all files
+data_files     <- list.files(here("data_", "2018_2019_"))
+
+#read in SPSS files
+T0_df <- read_sav(paste0(data_file_path, "/", data_files[3]))
+T1_df <- read_sav(paste0(data_file_path, "/", data_files[4]))
+T2_df <- read_sav(paste0(data_file_path, "/", data_files[5]))
+
+rm(data_file_path, data_files)
+```
+
+
+# Dataset  
+
+Observations included in the analysis were collected 2018-2019 (n=38), by Erasmus University Rotterdam in collaboration with CIRI. Participants completed an initial survey, a short follow-up immediately after the intervention, and a third survey designed to function as an impact measurement 6 months later. 
+
+```{r why_df}
+#variables representing reasons for participating are labelled as follows:
+why_vars <- c(paste0("why_000", seq(1,9)), paste0("why_00", seq(10,15)))
+
+#filter dataframe at T0 for the 'why' variables
+#where each reason is a column, with a 1 or a 0 indicating whether or not it was selected
+why_df   <- T0_df %>% select(why_vars)
+#replace NAs with 0s
+why_df[is.na(why_df)] <- 0
+
+#'why' items (in English)
+why_reasons <- c("To improve my personal skills", 
+                   "To increase my income", 
+                   "To become a (fulltime) creative entrepreneur", 
+                   "To improve my entrepreneurial skills",
+                   "To learn more about entrepreneurialism",
+                   "To start a (creative) company",
+                   "To learn how to better manage my current creative business", 
+                   "To better profile myself as an entrepreneur",
+                   "To start seeing myself more as an entrepreneur",
+                   "Because I'm having difficulty making money from my creativity",
+                   "Because I lack business knowhow",
+                   "Because the time I spend on business is hurting my creativity",
+                   "Because I don't have enough time to develop a long term strategy",
+                   "Because I want to put a value on my creativity", 
+                   "Other")
+
+# the question labels are formatted differently in the SPSS file:
+why_labels <- val_labels(why_df)
+```
+
+## Participant Motivations
+
+We first examine participants' reasons for choosing to attend the seminar series. Participants were asked 'Waarom heb je je aangemeld voor dit programma?", shown the options listed in Figure 1 (originally in Dutch), and were asked to select all that applied. 
+
+```{r why_df_visualization, include=TRUE, fig.align='left', fig.cap="Figure 1: Reasons selected for participating in an intervention, translated to English. Percentage indicates the percent of participants that selected the item."}
+#function to count and re-arrange by frequency of response
+extract_freq <- function (...) {
+  why_df %>% count(...) %>% arrange(desc(n))
+}
+
+#apply custom function to out frequency dataframe
+#this creates a list of tibbles with frequency counts
+#one for each reason 'why'
+freq_df <- apply(X = why_df, MARGIN=2, extract_freq)
+
+#rename the columns of each item in the list
+for(i in 1:length(freq_df)) {
+  freq_df[[i]]$Column <- names(freq_df[i])
+  names(freq_df[[i]]) <- c("Variable", "n", "Column_name")
+}
+
+#merge list items into a single df
+freq_df <- do.call(rbind, freq_df) %>% data.frame() %>% select(Column_name,Variable,n)
+
+#only include rows that indicate that the reason was selected
+#add a row indicate a percentage based on whether or not the item was selected
+freq_df <- freq_df %>% group_by(Column_name) %>% filter(Variable == 1) %>% mutate(percent = round(n/38*100, digits = 1))
+
+#add reasons to datafame translated to English
+freq_df$reasons <- why_reasons
+
+#put rows in descending order based on percentage
+freq_df$reasons <- factor(freq_df$reasons) %>%
+  fct_reorder(freq_df$percent)
+
+#plot results
+freq_df %>%
+  ggplot(aes(x=reasons, y=percent)) +
+  geom_col(fill=ciri_colors[2]) +
+  coord_flip() +
+  scale_x_discrete("",position = "top") +
+  scale_y_continuous("Percentage") +
+  theme_minimal()
+
+most_selected_reason <- freq_df %>% filter(percent == max(freq_df$percent))
+most_selected_reason
+
+rm(why_df, why_labels, freq_df, most_selected_reason, i, why_reasons, why_vars)
+```
+
+The most selected reason was "`r most_selected_reason$reasons`", chosen by __`r most_selected_reason$percent`__% of participants. 
+
+```{r important_modules_df, include=TRUE, fig.align='left', fig.cap="Figure 2: Self-reported module importance at two time-points. Frequency indicates the number of participants that indicated that the module was the most important at the given time point."}
+belang_df <- factor(T0_df$Belang_module, val_labels(T0_df$Belang_module))
+belang_df <- data.frame(table(belang_df))
+belang_df$module <- names(val_labels(T0_df$Belang_module))
+belang_df$time <- "T0"
+colnames(belang_df) <- c("belang_df", "frequency", "module", "time")
+
+belang_t2 <- factor(T2_df$Belang_module, val_labels(T2_df$Belang_module))
+belang_t2 <- data.frame(table(belang_t2))
+belang_t2$module <- names(val_labels(T2_df$Belang_module))
+belang_t2$time <- "T2"
+colnames(belang_t2) <- c("belang_df", "frequency", "module", "time")
+
+belang_df <- rbind(belang_df, belang_t2)
+
+belang_df$module <- factor(belang_df$module) %>%
+  fct_reorder(belang_df$frequency)
+
+belang_df %>%
+  ggplot(aes(x=frequency, y=module, fill=time)) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values=ciri_colors) + 
+  scale_y_discrete("", position = "right") +
+  scale_x_continuous("Frequency") +
+  theme_minimal()
+
+rm(belang_t2, belang_df)
+```
+
+```{r reason_df}
+reason    <- "q0004"
+reasons <- T0_df[reason]
+#kable(reasons, col.names = "Reasons", align = "l", caption="")
+reasons
+
+rm(reasons, reason)
+```
+
+## Net Income
+
+```{r build_income_dfs}
+# string representing self-reported net income variable
+income <- "Netto_inkomen"
+# string representing participant ID number
+ID <- "Accountnummer"
+
+# labels for income brackets
+labels <- val_labels(T0_df$Netto_inkomen)
+
+#create a df for income at each time point
+income_t0 <- T0_df %>% select(ID, income)
+colnames(income_t0) <- c("participant_ID", "T0")
+
+income_t1 <- T1_df %>% select(ID, income)
+colnames(income_t1) <- c("participant_ID", "T1")
+
+income_t2 <- T2_df %>% select(ID, income)
+colnames(income_t2) <- c("participant_ID", "T2")
+
+rm(ID, income)
+```
+
+```{r income_wide_df}
+# merge into wide format
+income_wide <- merge(x = income_t0,   y = income_t1, by="participant_ID", all=TRUE)
+income_wide <- merge(x = income_wide, y = income_t2, by="participant_ID", all=TRUE)
+
+# replace '11' with NA
+income_wide$T0 <- na_if(income_wide$T0, 11)
+income_wide$T1 <- na_if(income_wide$T1, 11)
+income_wide$T2 <- na_if(income_wide$T2, 11)
+```
+
+```{r income_long_df}
+# create long format df
+income_t0$time <- "T0"
+income_t1$time <- "T1"
+income_t2$time <- "T2"
+colnames(income_t0) <- c("participant_ID", "income", "time")
+colnames(income_t1) <- c("participant_ID", "income", "time")
+colnames(income_t2) <- c("participant_ID", "income", "time")
+income_long <- rbind(income_t0, income_t1,income_t2)
+
+#replace 11 with NA
+income_long$income <- na_if(income_long$income, 11)
+
+rm(income_t0,income_t1,income_t2)
+```
+
+### Analyze Missingness in Income Reporting
+
+```{r missingness_table}
+missingness_table <- income_wide %>%
+  select(T0, T1, T2) %>%
+  miss_var_summary(order=FALSE)
+
+colnames(missingness_table) <- c("Time", "Number Missing", "Percent Missing")
+
+missingness_table
+rm(missingness_table)
+```
+
+```{r intersection_plot}
+income_wide %>%
+  select(T0, T1, T2) %>%
+  gg_miss_upset()
+```
+
+```{r}
+income_long %>%
+  ggplot(aes(x=time, y=income)) +
+  geom_miss_point(alpha = .7, position = position_jitter(width = .15, height = .20)) +
+  scale_color_manual(values=c(ciri_colors[1], ciri_colors[4])) +
+    scale_y_continuous(
+     position = "right",
+     breaks = seq(1, 9, by = 1),
+     labels = c(
+       "<1000", "1000-1500", "1500-2000", 
+       "2000-2500", "2500-3000", "3000-3500", 
+       "3500-4000", "4000-4500", ">5000")
+     ) +
+  theme_minimal() +
+  theme(axis.title.y = element_blank(), axis.title.x = element_blank())
+```
+### Change in Income
+
+```{r income_delta_df}
+# compute differences in time points
+income_wide$t1_delta <- income_wide$T1 - income_wide$T0
+income_wide$t2_delta <- income_wide$T2 - income_wide$T0
+
+# create factor for results
+income_wide <- income_wide %>% 
+  mutate(t1_result = ifelse(t1_delta == 0, "neutral", 
+                     ifelse(t1_delta > 0, "profit", "loss")))
+
+income_wide <- income_wide %>%
+  mutate(t2_result = ifelse(t2_delta == 0, "neutral", 
+                     ifelse(t2_delta > 0, "profit", "loss")))
+
+delta_T0_T1 <- as.data.frame(table(income_wide$t1_result))
+colnames(delta_T0_T1) <- c("Status", "T0 - T1")
+
+delta_T0_T2 <- as.data.frame(table(income_wide$t2_result))
+colnames(delta_T0_T2) <- c("Status", "T0 - T2")
+
+income_delta <- merge(delta_T0_T1, delta_T0_T2, by= "Status")
+
+income_delta
+
+rm(delta_T0_T1, delta_T0_T2, income_delta)
+```
+
+```{r income_df_visualization, include=TRUE, fig.cap="Figure 3: Self-reported Net Income in 2018-2019 Euros at three time-points."}
+income_long %>%
+  ggplot(aes(x=time, y=income, fill=time)) +
+    ggdist::stat_halfeye(
+      show.legend = FALSE, 
+      adjust = 1,  # the breaks / bins of histogram
+      width = .5, 
+      justification = -.2,
+      .width = c(.5, .95)
+      ) +
+    scale_fill_manual(values=ciri_colors) +
+    geom_boxplot(
+      show.legend = FALSE,
+      width = .12, 
+      coef = 0, 
+      outlier.color = NA
+    )  +
+    gghalves::geom_half_point(
+      show.legend = FALSE, 
+      side="1", 
+      range_scale=.25,
+      alpha = .3
+      ) +
+   scale_y_continuous(
+     position = "right",
+     breaks = seq(1, 9, by = 1),
+     labels = c(
+       "<1000", "1000-1500", "1500-2000", 
+       "2000-2500", "2500-3000", "3000-3500", 
+       "3500-4000", "4000-4500", ">5000")
+     ) +
+  theme_minimal() +
+  theme(axis.title.y = element_blank(), axis.title.x = element_blank())
+```
+
+```{r}
+# estimate model
+mod <- lmer(income ~ time + (1|participant_ID), data=income_long)
+
+# run model diagnostics
+check_model(mod)
+
+# print parameter estimates
+summary(mod) 
+```
+
+```{r format results}
+# get fixed effect parameter estimates
+fixed <- as.data.frame(fixef(mod)) %>% tibble::rownames_to_column()
+
+# compute bootstrapped confidence intervals
+confint <- as.data.frame(confint.merMod(mod, level=.95, method="boot", nsim=500)) %>% tibble::rownames_to_column()
+
+#merge fixed and confint dataframes
+results <- merge(fixed, confint, by = 'rowname') %>% filter(rowname != '(Intercept)')
+
+#format results_df
+colnames(results) <- c("time", "estimate", "lower", "upper")
+results$time <- c("T1", "T2")
+
+rm(mod, fixed, confint)
+```
+
+
+```{r plot_parameter_estimates}
+results %>% 
+  ggplot(aes(x=time, y=estimate)) +
+  geom_errorbar(aes(ymin = lower, ymax = upper), position="dodge", color = ciri_colors[2]) +
+  geom_point(size=8, color = ciri_colors[2], fill = ciri_colors[1], shape = 22) +
+  scale_y_continuous(position = "right") +
+  theme_minimal() +
+  theme(axis.title.y = element_blank(), axis.title.x = element_blank())
+```
+### Constructs
+
+```{r constructs_df}
+Accountnummer <- 'Accountnummer'
+
+##Entrepreneurial Intentions:
+intentions_vars <- c(paste0("Intention_000", seq(1,9)))
+
+##Entrepreneurial Skills 
+Entrskills_vars <- c("Entrskills_0001", "Entrskills_0002", "Entrskills_0003", "Entrskills_0004", "Entrskills_0005", "Entrskills_0006", "Entrskills_0007")
+
+##Personal Skills:
+perskills_vars <- c(paste0("Perskills_000", seq(01,09)), paste0("Perskills_00", seq(10,15)))
+
+##Need for Achievement
+NFA_vars <- c("NfA_0001","NfA_0002","NfA_0003","NfA_0004")
+
+##Locus of Control
+LoC_vars <- c('LoC_0001','LoC_0002','LoC_0003','LoC_0004','LoC_0005','LoC_0006')
+
+#subscales
+#LoC_internal_vars <- c('LoC_0001','LoC_0002','LoC_0003')
+#LoC_external_vars <- c('LoC_0004_R','LoC_0005','LoC_0006_R')
+
+##Tolerance for Ambiguity
+TfA_vars <- c('TfA_0001','TfA_0002','TfA_0003','TfA_0004')
+
+#assemble df
+T0_constructs_df <- T0_df[c(Accountnummer, intentions_vars, Entrskills_vars, perskills_vars, NFA_vars, LoC_vars, TfA_vars)]
+T1_constructs_df <- T1_df[c(Accountnummer, intentions_vars, Entrskills_vars, perskills_vars, NFA_vars, LoC_vars, TfA_vars)]
+T2_constructs_df <- T2_df[c(Accountnummer, intentions_vars, Entrskills_vars, perskills_vars, NFA_vars, LoC_vars, TfA_vars)]
+
+#Locus of Control Reverse Scoring
+T0_constructs_df$LoC_0004 <- T0_constructs_df$LoC_0004 * -1
+T0_constructs_df$LoC_0006 <- T0_constructs_df$LoC_0006 * -1
+
+T1_constructs_df$LoC_0004 <- T1_constructs_df$LoC_0004 * -1
+T1_constructs_df$LoC_0006 <- T1_constructs_df$LoC_0006 * -1
+
+T2_constructs_df$LoC_0004 <- T2_constructs_df$LoC_0004 * -1
+T2_constructs_df$LoC_0006 <- T2_constructs_df$LoC_0006 * -1
+```
+
+```{r get_alpha_function}
+get_alpha_ci <- function(df){
+  alpha <- psych::alpha(df, n.iter=500)
+  return(alpha$boot.ci)
+}
+```
+
+```{r assemble_alpha_df}
+T0_constructs_df[Entrskills_vars] %>% get_alpha_ci()
+```
+
+
+
+![](image_files/ciri_logo.jpg)

@@ -1,0 +1,16 @@
+---
+title: "Impact Analysis 2018-2019"
+author: "Andrew M. Demetriou"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+output: 
+  html_document:
+          toc: true
+---
+
+```{r child = 'SPSS_analysis_why_1.7.Rmd'}
+```
+
+```{r child = 'SPSS_analysis_net_income_1.7.Rmd'}
+```
+
+![](image_files/ciri_logo.jpg)

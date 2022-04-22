@@ -1,0 +1,244 @@
+---
+title: "Impact Analysis 2018-2019"
+author: "Andrew M. Demetriou"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+output: 
+  html_document:
+          toc: true
+---
+
+```{r income_setup, include=FALSE}
+library('knitr')        # report generation
+
+library('here')         # file logistics
+library('haven')        # importing SPSS .sav files
+library('labelled')     # working with SPSS labels
+
+library('dplyr')        # code logistics
+library('tidyr')        # pivoting
+
+library('ggplot2')      # general visualization
+library('ggdist')       # raincloud plotting
+library('gghalves')     # raincloud plotting
+library('corrplot')     # visualizing correlations
+library('forcats')      # reorder bars
+
+library('naniar')       # missingness
+
+library('psych')        # reliability analysis
+
+library('lme4')         # multilevel modelling
+library('lmerTest')     # add statistical tests
+library('performance')  # checking assumptions
+library('broom.mixed')  # tibbles from model output
+
+
+knitr::opts_chunk$set(include = FALSE, echo=FALSE)
+
+#color scheme
+ciri_colors <- c('#fe7241', '#ae5944', '#543c4a', '#67444a')
+```
+
+```{r income_import_data}
+#SPSS data file path
+data_file_path <- here("data_", "2018_2019_")
+
+#create a list of all files
+data_files     <- list.files(here("data_", "2018_2019_"))
+
+#read in SPSS files
+T0_df <- read_sav(paste0(data_file_path, "/", data_files[3]))
+T1_df <- read_sav(paste0(data_file_path, "/", data_files[4]))
+T2_df <- read_sav(paste0(data_file_path, "/", data_files[5]))
+
+rm(data_file_path, data_files)
+```
+
+
+## Net Income
+
+```{r build_income_dfs}
+# string representing self-reported net income variable
+income <- "Netto_inkomen"
+# string representing participant ID number
+ID <- "Accountnummer"
+
+# labels for income brackets
+labels <- val_labels(T0_df$Netto_inkomen)
+
+#create a df for income at each time point
+income_t0 <- T0_df %>% select(ID, income)
+colnames(income_t0) <- c("participant_ID", "T0")
+
+income_t1 <- T1_df %>% select(ID, income)
+colnames(income_t1) <- c("participant_ID", "T1")
+
+income_t2 <- T2_df %>% select(ID, income)
+colnames(income_t2) <- c("participant_ID", "T2")
+
+rm(ID, income)
+```
+
+```{r income_wide_df}
+# merge into wide format
+income_wide <- merge(x = income_t0,   y = income_t1, by="participant_ID", all=TRUE)
+income_wide <- merge(x = income_wide, y = income_t2, by="participant_ID", all=TRUE)
+
+# replace '11' with NA
+income_wide$T0 <- na_if(income_wide$T0, 11)
+income_wide$T1 <- na_if(income_wide$T1, 11)
+income_wide$T2 <- na_if(income_wide$T2, 11)
+```
+
+```{r income_long_df}
+# create long format df
+income_t0$time <- "T0"
+income_t1$time <- "T1"
+income_t2$time <- "T2"
+colnames(income_t0) <- c("participant_ID", "income", "time")
+colnames(income_t1) <- c("participant_ID", "income", "time")
+colnames(income_t2) <- c("participant_ID", "income", "time")
+income_long <- rbind(income_t0, income_t1,income_t2)
+
+#replace 11 with NA
+income_long$income <- na_if(income_long$income, 11)
+
+rm(income_t0,income_t1,income_t2)
+```
+
+### Analyze Missingness in Income Reporting
+
+```{r missingness_table, include=TRUE}
+missingness_table <- income_wide %>%
+  select(T0, T1, T2) %>%
+  miss_var_summary(order=FALSE)
+
+colnames(missingness_table) <- c("Time", "Number Missing", "Percent Missing")
+
+missingness_table
+rm(missingness_table)
+```
+
+```{r intersection_plot, include=TRUE,fig.cap="Figure 3.1: Missingness per combination of time points."}
+income_wide %>%
+  select(T0, T1, T2) %>%
+  gg_miss_upset()
+```
+
+```{r}
+#income_long %>%
+#  ggplot(aes(x=time, y=income)) +
+#  geom_miss_point(alpha = .7, position = position_jitter(width = .15, height = .20)) +
+#  scale_color_manual(values=c(ciri_colors[1], ciri_colors[4])) +
+#    scale_y_continuous(
+#     position = "right",
+#     breaks = seq(1, 9, by = 1),
+#     labels = c(
+#       "<1000", "1000-1500", "1500-2000", 
+#       "2000-2500", "2500-3000", "3000-3500", 
+#       "3500-4000", "4000-4500", ">5000")
+#     ) +
+#  theme_minimal() +
+#  theme(axis.title.y = element_blank(), axis.title.x = element_blank())
+```
+### Change in Income
+
+```{r income_delta_df, include=TRUE}
+# compute differences in time points
+income_wide$t1_delta <- income_wide$T1 - income_wide$T0
+income_wide$t2_delta <- income_wide$T2 - income_wide$T0
+
+# create factor for results
+income_wide <- income_wide %>% 
+  mutate(t1_result = ifelse(t1_delta == 0, "neutral", 
+                     ifelse(t1_delta > 0, "profit", "loss")))
+
+income_wide <- income_wide %>%
+  mutate(t2_result = ifelse(t2_delta == 0, "neutral", 
+                     ifelse(t2_delta > 0, "profit", "loss")))
+
+delta_T0_T1 <- as.data.frame(table(income_wide$t1_result))
+colnames(delta_T0_T1) <- c("Status", "T0 - T1")
+
+delta_T0_T2 <- as.data.frame(table(income_wide$t2_result))
+colnames(delta_T0_T2) <- c("Status", "T0 - T2")
+
+income_delta <- merge(delta_T0_T1, delta_T0_T2, by= "Status")
+
+income_delta
+
+rm(delta_T0_T1, delta_T0_T2, income_delta)
+```
+
+```{r income_df_visualization, include=TRUE, fig.cap="Figure 3.2: Self-reported Net Income in 2018-2019 Euros at three time-points."}
+income_long %>%
+  ggplot(aes(x=time, y=income, fill=time)) +
+    ggdist::stat_halfeye(
+      show.legend = FALSE, 
+      adjust = 1,  # the breaks / bins of histogram
+      width = .5, 
+      justification = -.2,
+      .width = c(.5, .95)
+      ) +
+    scale_fill_manual(values=ciri_colors) +
+    geom_boxplot(
+      show.legend = FALSE,
+      width = .12, 
+      coef = 0, 
+      outlier.color = NA
+    )  +
+    gghalves::geom_half_point(
+      show.legend = FALSE, 
+      side="1", 
+      range_scale=.25,
+      alpha = .3
+      ) +
+   scale_y_continuous(
+     position = "right",
+     breaks = seq(1, 9, by = 1),
+     labels = c(
+       "<1000", "1000-1500", "1500-2000", 
+       "2000-2500", "2500-3000", "3000-3500", 
+       "3500-4000", "4000-4500", ">5000")
+     ) +
+  theme_minimal() +
+  theme(axis.title.y = element_blank(), axis.title.x = element_blank())
+```
+
+```{r income_model, include=TRUE}
+# estimate model
+mod <- lmer(income ~ time + (1|participant_ID), data=income_long)
+
+# run model diagnostics
+#check_model(mod)
+
+# print parameter estimates
+summary(mod) 
+```
+
+```{r format results}
+# get fixed effect parameter estimates
+fixed <- as.data.frame(fixef(mod)) %>% tibble::rownames_to_column()
+
+# compute bootstrapped confidence intervals
+confint <- as.data.frame(confint.merMod(mod, level=.95, method="boot", nsim=500)) %>% tibble::rownames_to_column()
+
+#merge fixed and confint dataframes
+results <- merge(fixed, confint, by = 'rowname') %>% filter(rowname != '(Intercept)')
+
+#format results_df
+colnames(results) <- c("time", "estimate", "lower", "upper")
+results$time <- c("T1", "T2")
+
+rm(mod, fixed, confint)
+```
+
+```{r plot_parameter_estimates, include=TRUE, fig.cap="Figure 3.4: Paramter estimates of difference between T0 and either T1 or T2, and 95% boostrapped confidence intervals."}
+results %>% 
+  ggplot(aes(x=time, y=estimate)) +
+  geom_errorbar(aes(ymin = lower, ymax = upper), position="dodge", color = ciri_colors[2]) +
+  geom_point(size=8, color = ciri_colors[2], fill = ciri_colors[1], shape = 22) +
+  scale_y_continuous(position = "right") +
+  theme_minimal() +
+  theme(axis.title.y = element_blank(), axis.title.x = element_blank())
+```

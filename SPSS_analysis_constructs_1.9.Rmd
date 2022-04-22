@@ -1,0 +1,172 @@
+---
+title: "Impact Analysis 2018-2019"
+author: "Andrew M. Demetriou"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+output: 
+  html_document:
+          toc: true
+---
+
+```{r setup, include=FALSE}
+library('knitr')        # report generation
+
+library('here')         # file logistics
+library('haven')        # importing SPSS .sav files
+library('labelled')     # working with SPSS labels
+
+library('dplyr')        # code logistics
+library('tidyr')        # pivoting
+
+library('ggplot2')      # general visualization
+library('ggdist')       # raincloud plotting
+library('gghalves')     # raincloud plotting
+library('corrplot')     # visualizing correlations
+library('forcats')      # reorder bars
+
+library('naniar')       # missingness
+
+library('psych')        # reliability analysis
+
+library('lme4')         # multilevel modelling
+library('lmerTest')     # add statistical tests
+library('performance')  # checking assumptions
+library('broom.mixed')  # tibbles from model output
+
+
+knitr::opts_chunk$set(include = FALSE, echo=FALSE)
+
+#color scheme
+ciri_colors <- c('#fe7241', '#ae5944', '#543c4a', '#67444a')
+```
+
+```{r import_data}
+#SPSS data file path
+data_file_path <- here("data_", "2018_2019_")
+
+#create a list of all files
+data_files     <- list.files(here("data_", "2018_2019_"))
+
+#read in SPSS files
+T0_df <- read_sav(paste0(data_file_path, "/", data_files[3]))
+T1_df <- read_sav(paste0(data_file_path, "/", data_files[4]))
+T2_df <- read_sav(paste0(data_file_path, "/", data_files[5]))
+
+rm(data_file_path, data_files)
+```
+
+### Constructs
+
+```{r constructs_df}
+Accountnummer <- 'Accountnummer'
+
+##Entrepreneurial Intentions:
+intentions_vars <- c(paste0("Intention_000", seq(1,9)))
+
+##Entrepreneurial Skills 
+Entrskills_vars <- c("Entrskills_0001", "Entrskills_0002", "Entrskills_0003", "Entrskills_0004", "Entrskills_0005", "Entrskills_0006", "Entrskills_0007")
+
+##Personal Skills:
+perskills_vars <- c(paste0("Perskills_000", seq(01,09)), paste0("Perskills_00", seq(10,15)))
+
+##Need for Achievement
+NFA_vars <- c("NfA_0001","NfA_0002","NfA_0003","NfA_0004")
+
+##Locus of Control
+LoC_vars <- c('LoC_0001','LoC_0002','LoC_0003','LoC_0004','LoC_0005','LoC_0006')
+
+#subscales
+#LoC_internal_vars <- c('LoC_0001','LoC_0002','LoC_0003')
+#LoC_external_vars <- c('LoC_0004_R','LoC_0005','LoC_0006_R')
+
+##Tolerance for Ambiguity
+TfA_vars <- c('TfA_0001','TfA_0002','TfA_0003','TfA_0004')
+
+#assemble df
+T0_constructs_df <- T0_df[c(Accountnummer, intentions_vars, Entrskills_vars, perskills_vars, NFA_vars, LoC_vars, TfA_vars)]
+T1_constructs_df <- T1_df[c(Accountnummer, intentions_vars, Entrskills_vars, perskills_vars, NFA_vars, LoC_vars, TfA_vars)]
+T2_constructs_df <- T2_df[c(Accountnummer, intentions_vars, Entrskills_vars, perskills_vars, NFA_vars, LoC_vars, TfA_vars)]
+
+#Locus of Control Reverse Scoring
+T0_constructs_df$LoC_0004 <- T0_constructs_df$LoC_0004 * -1
+T0_constructs_df$LoC_0006 <- T0_constructs_df$LoC_0006 * -1
+
+T1_constructs_df$LoC_0004 <- T1_constructs_df$LoC_0004 * -1
+T1_constructs_df$LoC_0006 <- T1_constructs_df$LoC_0006 * -1
+
+T2_constructs_df$LoC_0004 <- T2_constructs_df$LoC_0004 * -1
+T2_constructs_df$LoC_0006 <- T2_constructs_df$LoC_0006 * -1
+```
+
+```{r get_alpha_function}
+get_alpha_ci <- function(df){
+  alpha <- psych::alpha(df, n.iter=500)
+  return(alpha$boot.ci)
+}
+```
+
+```{r assemble_alpha_df_function}
+#t<- T0_constructs_df[Entrskills_vars] %>% get_alpha_ci() %>% as.data.frame()
+
+#assemble_alpha_df <- function(df, vars) {
+#  df[vars] %>%
+#    get_alpha_ci() %>%
+#    as.data.frame() 
+#}
+
+assemble_alpha_df <- function(df, vars) {
+  
+  df_name <- deparse(substitute(df))
+  
+  results <- df[vars] %>%
+    get_alpha_ci() %>%
+    as.data.frame()
+  
+  
+    
+  results <- tibble::rownames_to_column(results)
+  colnames(results) <- c("Interval", df_name)
+  
+  return(results)
+}
+
+  
+#s <- assemble_alpha_df(T0_constructs_df, Entrskills_vars)
+#s
+```
+```{r}
+df_name <- "T0_constructs_df"
+a <- scan(text=df_name, comment.char='_', what="")
+
+vars <- "Entrskills_vars"
+b <- scan(text=vars, comment.char='_', what="")
+
+paste0(a, "_", b)
+```
+```{r}
+assemble_alpha_df <- function(df, vars) {
+  
+  df_name <- deparse(substitute(df)) %>%
+    scan(text = ., comment.char='_', what="")
+  
+  vars_name <- deparse(substitute(vars)) %>%
+    scan(text = ., comment.char='_', what="")
+  
+  name <- paste0(df_name, "_", vars_name)
+  
+  results <- df[vars] %>%
+    get_alpha_ci() %>%
+    as.data.frame()
+  
+  
+    
+  results <- tibble::rownames_to_column(results)
+  colnames(results) <- c("Interval", name)
+  
+  return(results)
+}
+
+s <- assemble_alpha_df(T0_constructs_df, Entrskills_vars)
+s
+```
+
+
