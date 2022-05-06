@@ -19,19 +19,19 @@ library('tidyr')        # pivoting
 library('purrr')        # multiple left joins
 
 library('ggplot2')      # general visualization
-library('ggdist')       # raincloud plotting
-library('gghalves')     # raincloud plotting
-library('corrplot')     # visualizing correlations
-library('forcats')      # reorder bars
+#library('ggdist')       # raincloud plotting
+#library('gghalves')     # raincloud plotting
+#library('corrplot')     # visualizing correlations
+#library('forcats')      # reorder bars
 
 library('naniar')       # missingness
 
 library('psych')        # reliability analysis
 
-library('lme4')         # multilevel modelling
-library('lmerTest')     # add statistical tests
-library('performance')  # checking assumptions
-library('broom.mixed')  # tibbles from model output
+#library('lme4')         # multilevel modelling
+#library('lmerTest')     # add statistical tests
+#library('performance')  # checking assumptions
+#library('broom.mixed')  # tibbles from model output
 
 
 knitr::opts_chunk$set(include = FALSE, echo=FALSE)
@@ -58,6 +58,7 @@ rm(data_file_path, data_files)
 ### Constructs
 
 ```{r constructs_df}
+##Participant ID:
 Accountnummer <- 'Accountnummer'
 
 ##Entrepreneurial Intentions:
@@ -75,17 +76,35 @@ NFA_vars <- c("NfA_0001","NfA_0002","NfA_0003","NfA_0004")
 ##Locus of Control
 LoC_vars <- c('LoC_0001','LoC_0002','LoC_0003','LoC_0004','LoC_0005','LoC_0006')
 
-#subscales
-#LoC_internal_vars <- c('LoC_0001','LoC_0002','LoC_0003')
-#LoC_external_vars <- c('LoC_0004_R','LoC_0005','LoC_0006_R')
+#LoC subscales
+LoC_internal_vars <- c('LoC_0001','LoC_0002','LoC_0003')
+LoC_external_vars <- c('LoC_0004','LoC_0005','LoC_0006')
 
 ##Tolerance for Ambiguity
 TfA_vars <- c('TfA_0001','TfA_0002','TfA_0003','TfA_0004')
 
+constructs <- list(Entrskills_vars, perskills_vars, NFA_vars, LoC_vars, LoC_internal_vars, LoC_external_vars, TfA_vars)
+names(constructs) <- c("Entrskills_vars", "perskills_vars", "NFA_vars", "LoC_vars", "LoC_internal_vars", "LoC_external_vars", "TfA_vars")
+
 #assemble df
-T0_constructs_df <- T0_df[c(Accountnummer, intentions_vars, Entrskills_vars, perskills_vars, NFA_vars, LoC_vars, TfA_vars)]
-T1_constructs_df <- T1_df[c(Accountnummer, intentions_vars, Entrskills_vars, perskills_vars, NFA_vars, LoC_vars, TfA_vars)]
-T2_constructs_df <- T2_df[c(Accountnummer, intentions_vars, Entrskills_vars, perskills_vars, NFA_vars, LoC_vars, TfA_vars)]
+T0_constructs_df <- T0_df[c(Accountnummer, intentions_vars, Entrskills_vars, perskills_vars, NFA_vars, LoC_vars, LoC_internal_vars, LoC_external_vars, TfA_vars)]
+T1_constructs_df <- T1_df[c(Accountnummer, intentions_vars, Entrskills_vars, perskills_vars, NFA_vars, LoC_vars, LoC_internal_vars, LoC_external_vars, TfA_vars)]
+T2_constructs_df <- T2_df[c(Accountnummer, intentions_vars, Entrskills_vars, perskills_vars, NFA_vars, LoC_vars, LoC_internal_vars, LoC_external_vars, TfA_vars)]
+
+#perskills all appear to be phrased in the positive
+#var_label(T0_df[constructs$perskills_vars])
+
+#tfa 3 and 4 should be reverse scored
+#var_label((T0_df[constructs$TfA_vars]))
+
+#Tolerance for Ambiguity reverse scoring
+T0_constructs_df$TfA_0003 <- T0_constructs_df$TfA_0003 * -1
+T1_constructs_df$TfA_0003 <- T1_constructs_df$TfA_0003 * -1
+T2_constructs_df$TfA_0003 <- T2_constructs_df$TfA_0003 * -1
+
+T0_constructs_df$TfA_0004 <- T0_constructs_df$TfA_0004 * -1
+T1_constructs_df$TfA_0004 <- T1_constructs_df$TfA_0004 * -1
+T2_constructs_df$TfA_0004 <- T2_constructs_df$TfA_0004 * -1
 
 #Locus of Control Reverse Scoring
 T0_constructs_df$LoC_0004 <- T0_constructs_df$LoC_0004 * -1
@@ -97,8 +116,8 @@ T1_constructs_df$LoC_0006 <- T1_constructs_df$LoC_0006 * -1
 T2_constructs_df$LoC_0004 <- T2_constructs_df$LoC_0004 * -1
 T2_constructs_df$LoC_0006 <- T2_constructs_df$LoC_0006 * -1
 
-constructs <- list(Entrskills_vars, perskills_vars, NFA_vars, LoC_vars, TfA_vars)
-names(constructs) <- c("Entrskills_vars", "perskills_vars", "NFA_vars", "LoC_vars", "TfA_vars")
+
+rm(Accountnummer, Entrskills_vars, intentions_vars, LoC_vars, NFA_vars, LoC_internal_vars, LoC_external_vars, perskills_vars, TfA_vars, T0_df, T1_df, T2_df)
 ```
 
 ```{r get_alpha_function}
@@ -107,7 +126,6 @@ get_alpha_ci <- function(df){
   return(alpha$boot.ci)
 }
 ```
-
 
 ```{r assemble_alpha_df_function}
 assemble_alpha_df <- function(df, vars) {
@@ -152,15 +170,71 @@ assemble_alpha_df <- function(df, vars) {
 
 
 ```{r alpha_summary_df}
-alpha_summary_df <- lapply(constructs, assemble_alpha_df, df=T0_constructs_df) %>%
+alpha_summary_df_T0 <- lapply(constructs, assemble_alpha_df, df=T0_constructs_df) %>%
   lapply(., pivot_wider, names_from = Interval, values_from = `T0_X[[i]]`) %>%
   bind_rows(., .id='Construct')
+
+alpha_summary_df_T1 <- lapply(constructs, assemble_alpha_df, df=T1_constructs_df) %>%
+  lapply(., pivot_wider, names_from = Interval, values_from = `T1_X[[i]]`) %>%
+  bind_rows(., .id='Construct')
+
+alpha_summary_df_T2 <- lapply(constructs, assemble_alpha_df, df=T2_constructs_df) %>%
+  lapply(., pivot_wider, names_from = Interval, values_from = `T2_X[[i]]`) %>%
+  bind_rows(., .id='Construct')
 ```
+
 ```{r alpha_plot}
-alpha_summary_df %>% ggplot(., aes(x=Construct, y=`50%`)) +
+alpha_summary_df_T0 %>% ggplot(., aes(x=Construct, y=`50%`)) +
   geom_point() +
   geom_errorbar(aes(ymin=`2.5%`, ymax=`97.5%`, color=Construct)) +
   theme_minimal()
+
+alpha_summary_df_T1 %>% ggplot(., aes(x=Construct, y=`50%`)) +
+  geom_point() +
+  geom_errorbar(aes(ymin=`2.5%`, ymax=`97.5%`, color=Construct)) +
+  theme_minimal()
+
+alpha_summary_df_T2 %>% ggplot(., aes(x=Construct, y=`50%`)) +
+  geom_point() +
+  geom_errorbar(aes(ymin=`2.5%`, ymax=`97.5%`, color=Construct)) +
+  theme_minimal()
+
+rm(alpha_summary_df_T0, alpha_summary_df_T1, alpha_summary_df_T2)
 ```
 
+```{r factor_analysis}
+#MR* are the factors reflecting the fitting method
+#h* is the amount of variance in variable explained by factors (commonality)
+#u* is residual variance (uniqueness)
+
+#running the object gives you the proportion of variance explained by the factor
+fa_LoC_2 <- psych::fa(T0_constructs_df[constructs$LoC_vars], 2)
+fa_LoC_2
+
+fa_LoC_1 <- psych::fa(T0_constructs_df[constructs$LoC_vars], 1)
+fa_LoC_1
+
+fa_Tfa <- psych::fa(T0_constructs_df[constructs$TfA_vars])
+fa_Tfa
+
+rm(fa_LoC_1, fa_LoC_2, fa_Tfa)
+```
+### Analyze Missingness in Income Reporting
+
+```{r missingness_table, include=TRUE}
+missingness_table <- T0_constructs_df %>%
+  select(-Accountnummer) %>%
+  miss_var_summary(order=FALSE)
+
+colnames(missingness_table) <- c("Time", "Number Missing", "Percent Missing")
+
+missingness_table
+rm(missingness_table)
+```
+
+```{r intersection_plot, include=TRUE,fig.cap="Figure 3.1: Missingness per combination of time points."}
+income_wide %>%
+  select(T0, T1, T2) %>%
+  gg_miss_upset()
+```
 
