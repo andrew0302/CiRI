@@ -28,6 +28,9 @@ library('naniar')       # missingness
 
 library('psych')        # reliability analysis
 
+library('lavaan')       # SEM
+library('lavaanPlot')   # visualizing results
+
 #library('lme4')         # multilevel modelling
 #library('lmerTest')     # add statistical tests
 #library('performance')  # checking assumptions
@@ -87,9 +90,18 @@ constructs <- list(Entrskills_vars, perskills_vars, NFA_vars, LoC_vars, LoC_inte
 names(constructs) <- c("Entrskills_vars", "perskills_vars", "NFA_vars", "LoC_vars", "LoC_internal_vars", "LoC_external_vars", "TfA_vars")
 
 #assemble df
-T0_constructs_df <- T0_df[c(Accountnummer, intentions_vars, Entrskills_vars, perskills_vars, NFA_vars, LoC_vars, LoC_internal_vars, LoC_external_vars, TfA_vars)]
-T1_constructs_df <- T1_df[c(Accountnummer, intentions_vars, Entrskills_vars, perskills_vars, NFA_vars, LoC_vars, LoC_internal_vars, LoC_external_vars, TfA_vars)]
-T2_constructs_df <- T2_df[c(Accountnummer, intentions_vars, Entrskills_vars, perskills_vars, NFA_vars, LoC_vars, LoC_internal_vars, LoC_external_vars, TfA_vars)]
+#T0_constructs_df <- T0_df[c(Accountnummer, intentions_vars, Entrskills_vars, perskills_vars, NFA_vars, LoC_vars, LoC_internal_vars, LoC_external_vars, TfA_vars)]
+
+T0_constructs_df <- T0_df[c(Accountnummer, intentions_vars, Entrskills_vars, perskills_vars, NFA_vars, LoC_vars,TfA_vars)]
+
+#T1_constructs_df <- T1_df[c(Accountnummer, intentions_vars, Entrskills_vars, perskills_vars, NFA_vars, LoC_vars, LoC_internal_vars, LoC_external_vars, TfA_vars)]
+
+T1_constructs_df <- T1_df[c(Accountnummer, intentions_vars, Entrskills_vars, perskills_vars, NFA_vars, LoC_vars, TfA_vars)]
+
+#T2_constructs_df <- T2_df[c(Accountnummer, intentions_vars, Entrskills_vars, perskills_vars, NFA_vars, LoC_vars, LoC_internal_vars, LoC_external_vars, TfA_vars)]
+
+T2_constructs_df <- T2_df[c(Accountnummer, intentions_vars, Entrskills_vars, perskills_vars, NFA_vars, LoC_vars, TfA_vars)]
+
 
 #perskills all appear to be phrased in the positive
 #var_label(T0_df[constructs$perskills_vars])
@@ -222,19 +234,75 @@ rm(fa_LoC_1, fa_LoC_2, fa_Tfa)
 ### Analyze Missingness in Income Reporting
 
 ```{r missingness_table, include=TRUE}
-missingness_table <- T0_constructs_df %>%
+missingness_table_T0 <- T0_constructs_df %>%
   select(-Accountnummer) %>%
   miss_var_summary(order=FALSE)
 
-colnames(missingness_table) <- c("Time", "Number Missing", "Percent Missing")
+colnames(missingness_table_T0) <- c("Time", "Number Missing", "Percent Missing")
 
-missingness_table
-rm(missingness_table)
+missingness_table_T1 <- T1_constructs_df %>%
+  select(-Accountnummer) %>%
+  miss_var_summary(order=FALSE)
+
+colnames(missingness_table_T1) <- c("Time", "Number Missing", "Percent Missing")
+
+
+missingness_table_T2 <- T2_constructs_df %>%
+  select(-Accountnummer) %>%
+  miss_var_summary(order=FALSE)
+
+colnames(missingness_table_T2) <- c("Time", "Number Missing", "Percent Missing")
+
+missingness_table_T0
+missingness_table_T1
+missingness_table_T2
+
+rm(missingness_table_T0, missingness_table_T1, missingness_table_T2)
 ```
 
 ```{r intersection_plot, include=TRUE,fig.cap="Figure 3.1: Missingness per combination of time points."}
-income_wide %>%
-  select(T0, T1, T2) %>%
+#merge(T1_constructs_df, T2_constructs_df, by="Accountnummer") %>%
+#  gg_miss_upset()
+
+T1_constructs_df %>%
   gg_miss_upset()
 ```
+
+#need for achievement
+```{r}
+NFA_model <- ' NFA =~ NfA_0001 + NfA_0002 + NfA_0003 + NfA_0004'
+
+NFA_fit   <- cfa(NFA_model,data=T0_constructs_df, std.lv=TRUE)
+
+lavaanPlot(model=NFA_fit, node_options = list(fontname = "Helvetica"), edge_options = list(color = "grey"),coefs=TRUE, stars='latent')
+
+summary(NFA_fit)
+```
+
+#Locus of Control
+```{r}
+LoC_model <- ' LoC_internal =~ LoC_0001 + LoC_0002 + LoC_0003 
+               LoC_external =~ LoC_0004 + LoC_0005 + LoC_0006
+               LoC_internal ~~ LoC_external '
+
+LoC_fit   <- cfa(LoC_model,data=T0_constructs_df, std.lv=TRUE)
+lavaanPlot(model=LoC_fit, node_options = list(fontname = "Helvetica"), edge_options = list(color = "grey"), coefs=TRUE, covs=TRUE, stars='latent')
+summary(LoC_fit)
+```
+
+```{r}
+big_bad_model <- 
+  ' NFA =~ NfA_0001 + NfA_0002 + NfA_0003 + NfA_0004
+    LoC_internal =~ LoC_0001 + LoC_0002 + LoC_0003 
+    Entrskills =~ Entrskills_0001 + Entrskills_0002 +Entrskills_0003 + Entrskills_0004 + Entrskills_0005 + Entrskills_0006 + Entrskills_0007
+    LoC_internal ~~ NFA
+    LoC_internal ~~ Entrskills
+    NFA ~~ Entrskills
+'
+
+big_bad_fit <- cfa(big_bad_model,data=T0_constructs_df, std.lv=TRUE)
+lavaanPlot(model=big_bad_fit, node_options = list(fontname = "Helvetica"), edge_options = list(color = "grey"), coefs=TRUE, covs=TRUE, stars='latent')
+
+```
+
 
