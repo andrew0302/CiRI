@@ -1,0 +1,147 @@
+---
+title: "Impact Analysis 2018-2019"
+author: "Andrew M. Demetriou"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+output: 
+  html_document:
+          toc: true
+---
+
+```{r setup, include=FALSE}
+library('knitr')        # report generation
+
+library('here')         # file logistics
+library('haven')        # importing SPSS .sav files
+library('labelled')     # working with SPSS labels
+
+library('dplyr')        # code logistics
+library('tidyr')        # pivoting
+library('purrr')        # multiple left joins
+
+library('ggplot2')      # general visualization
+
+library('naniar')       # missingness
+
+library('psych')        # reliability analysis
+
+library('ltm')          # cronbach's alpha
+
+library('mirt')
+
+library('lavaan')       # SEM
+library('lavaanPlot')   # visualizing results
+
+knitr::opts_chunk$set(include = FALSE, echo=FALSE)
+
+#color scheme
+ciri_colors <- c('#fe7241', '#ae5944', '#543c4a', '#67444a')
+```
+
+```{r import_format_data}
+source(here("SPSS_constructs_formatting_1.0.R"))
+```
+
+```{r get_alpha_function}
+get_alpha_ci <- function(df){
+  alpha <- psych::alpha(df, n.iter=500)
+  return(alpha$boot.ci)
+}
+```
+
+```{r assemble_alpha_df_function}
+assemble_alpha_df <- function(df, vars) {
+  
+  ## make an identifier for the specific construct
+  # get the name of the dataframe
+  df_name <- deparse(substitute(df)) %>%
+    # should return time point of measure e.g. 'T0'
+    scan(text = ., comment.char='_', what="")
+  
+  # get name of construct
+  vars_name <- deparse(substitute(vars)) %>%
+      #should return construct name e.g. 'LoC'
+      scan(text = ., comment.char='_', what="")
+  
+  # put the two together
+  name <- paste0(df_name, "_", vars_name)
+  
+  ## make a dataframe for results
+  # get relevant columns from df
+  results <- df[vars] %>%
+    # compute alpha on the set
+    get_alpha_ci() %>%
+    # convert to df
+    as.data.frame()
+  
+  # make the rownames a column
+  results <- tibble::rownames_to_column(results)
+  
+  # rename columns
+  colnames(results) <- c("Interval", name)
+  
+  # tell R what to return
+  return(results)
+}
+#s <- assemble_alpha_df(T0_constructs_df, Entrskills_vars)
+#t <- assemble_alpha_df(T0_constructs_df, perskills_vars)
+```
+
+```{r alpha_summary_function}
+alpha_summary <- function(df){
+  lapply(constructs, assemble_alpha_df, df=df) %>%
+  lapply(., pivot_wider, names_from = Interval, values_from = `df_X[[i]]`) %>%
+  bind_rows(., .id='Construct')
+}
+#df <- T0_constructs_df
+#t <- alpha_summary(df)
+```
+
+```{r}
+alpha_summary_df_T0 <- spss_df %>% filter(wave=='T0') %>% alpha_summary(.) %>% mutate(wave = "T0")
+alpha_summary_df_T1 <- spss_df %>% filter(wave=='T1') %>% alpha_summary(.) %>% mutate(wave = "T1")
+alpha_summary_df_T2 <- spss_df %>% filter(wave=='T2') %>% alpha_summary(.) %>% mutate(wave = "T2")
+
+
+T0_constructs_df <- spss_df %>% filter(wave == "T0")
+T1_constructs_df <- spss_df %>% filter(wave == "T1")
+T2_constructs_df <- spss_df %>% filter(wave == "T1")
+```
+
+
+```{r alpha_plot}
+alpha_summary_df_T0 %>% ggplot(., aes(x=Construct, y=`50%`)) +
+  geom_point() +
+  geom_errorbar(aes(ymin=`2.5%`, ymax=`97.5%`, color=Construct)) +
+  theme_minimal()
+
+alpha_summary_df_T1 %>% ggplot(., aes(x=Construct, y=`50%`)) +
+  geom_point() +
+  geom_errorbar(aes(ymin=`2.5%`, ymax=`97.5%`, color=Construct)) +
+  theme_minimal()
+
+alpha_summary_df_T2 %>% ggplot(., aes(x=Construct, y=`50%`)) +
+  geom_point() +
+  geom_errorbar(aes(ymin=`2.5%`, ymax=`97.5%`, color=Construct)) +
+  theme_minimal()
+
+rm(alpha_summary_df_T0, alpha_summary_df_T1, alpha_summary_df_T2)
+```
+
+```{r factor_analysis}
+#MR* are the factors reflecting the fitting method
+#h* is the amount of variance in variable explained by factors (commonality)
+#u* is residual variance (uniqueness)
+
+#running the object gives you the proportion of variance explained by the factor
+fa_LoC_2 <- psych::fa(T0_constructs_df[constructs$LoC_vars], 2)
+fa_LoC_2
+
+fa_LoC_1 <- psych::fa(T0_constructs_df[constructs$LoC_vars], 1)
+fa_LoC_1
+
+fa_Tfa <- psych::fa(T0_constructs_df[constructs$TfA_vars])
+fa_Tfa
+
+rm(fa_LoC_1, fa_LoC_2, fa_Tfa)
+```
+

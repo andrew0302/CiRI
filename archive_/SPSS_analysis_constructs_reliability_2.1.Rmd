@@ -1,0 +1,226 @@
+---
+title: "Impact Analysis 2018-2019"
+author: "Andrew M. Demetriou"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+output: 
+  html_document:
+          toc: true
+---
+
+```{r setup, include=FALSE}
+library('knitr')        # report generation
+
+library('here')         # file logistics
+library('haven')        # importing SPSS .sav files
+library('labelled')     # working with SPSS labels
+
+library('dplyr')        # code logistics
+library('tidyr')        # pivoting
+library('purrr')        # multiple left joins
+
+library('ggplot2')      # general visualization
+#library('ggdist')       # raincloud plotting
+#library('gghalves')     # raincloud plotting
+#library('corrplot')     # visualizing correlations
+#library('forcats')      # reorder bars
+
+library('naniar')       # missingness
+
+library('psych')        # reliability analysis
+
+library('lavaan')       # SEM
+library('lavaanPlot')   # visualizing results
+
+#library('lme4')         # multilevel modelling
+#library('lmerTest')     # add statistical tests
+#library('performance')  # checking assumptions
+#library('broom.mixed')  # tibbles from model output
+
+knitr::opts_chunk$set(include = FALSE, echo=FALSE)
+
+#color scheme
+ciri_colors <- c('#fe7241', '#ae5944', '#543c4a', '#67444a')
+```
+
+```{r import_format_data}
+source(here("SPSS_constructs_formatting_1.0.R"))
+```
+
+```{r get_alpha_function}
+get_alpha_ci <- function(df){
+  alpha <- psych::alpha(df, n.iter=500)
+  return(alpha$boot.ci)
+}
+```
+
+```{r assemble_alpha_df_function}
+assemble_alpha_df <- function(df, vars) {
+  
+  ## make an identifier for the specific construct
+  # get the name of the dataframe
+  df_name <- deparse(substitute(df)) %>%
+    # should return time point of measure e.g. 'T0'
+    scan(text = ., comment.char='_', what="")
+  
+  # get name of construct
+  vars_name <- deparse(substitute(vars)) %>%
+      #should return construct name e.g. 'LoC'
+      scan(text = ., comment.char='_', what="")
+  
+  # put the two together
+  name <- paste0(df_name, "_", vars_name)
+  
+  ## make a dataframe for results
+  # get relevant columns from df
+  results <- df[vars] %>%
+    # compute alpha on the set
+    get_alpha_ci() %>%
+    # convert to df
+    as.data.frame()
+  
+  # make the rownames a column
+  results <- tibble::rownames_to_column(results)
+  
+  # rename columns
+  colnames(results) <- c("Interval", name)
+  
+  # tell R what to return
+  return(results)
+}
+#s <- assemble_alpha_df(T0_constructs_df, Entrskills_vars)
+#t <- assemble_alpha_df(T0_constructs_df, perskills_vars)
+```
+
+```{r alpha_summary_function}
+alpha_summary <- function(df){
+  lapply(constructs, assemble_alpha_df, df=df) %>%
+  lapply(., pivot_wider, names_from = Interval, values_from = `df_X[[i]]`) %>%
+  bind_rows(., .id='Construct')
+}
+#df <- T0_constructs_df
+#t <- alpha_summary(df)
+```
+
+```{r}
+alpha_summary_df_T0 <- spss_df %>% filter(wave=='T0') %>% alpha_summary(.) %>% mutate(wave = "T0")
+alpha_summary_df_T1 <- spss_df %>% filter(wave=='T1') %>% alpha_summary(.) %>% mutate(wave = "T1")
+alpha_summary_df_T2 <- spss_df %>% filter(wave=='T2') %>% alpha_summary(.) %>% mutate(wave = "T2")
+
+
+T0_constructs_df <- spss_df %>% filter(wave == "T0")
+T1_constructs_df <- spss_df %>% filter(wave == "T1")
+T2_constructs_df <- spss_df %>% filter(wave == "T1")
+```
+
+
+```{r alpha_plot}
+alpha_summary_df_T0 %>% ggplot(., aes(x=Construct, y=`50%`)) +
+  geom_point() +
+  geom_errorbar(aes(ymin=`2.5%`, ymax=`97.5%`, color=Construct)) +
+  theme_minimal()
+
+alpha_summary_df_T1 %>% ggplot(., aes(x=Construct, y=`50%`)) +
+  geom_point() +
+  geom_errorbar(aes(ymin=`2.5%`, ymax=`97.5%`, color=Construct)) +
+  theme_minimal()
+
+alpha_summary_df_T2 %>% ggplot(., aes(x=Construct, y=`50%`)) +
+  geom_point() +
+  geom_errorbar(aes(ymin=`2.5%`, ymax=`97.5%`, color=Construct)) +
+  theme_minimal()
+
+rm(alpha_summary_df_T0, alpha_summary_df_T1, alpha_summary_df_T2)
+```
+
+```{r factor_analysis}
+#MR* are the factors reflecting the fitting method
+#h* is the amount of variance in variable explained by factors (commonality)
+#u* is residual variance (uniqueness)
+
+#running the object gives you the proportion of variance explained by the factor
+fa_LoC_2 <- psych::fa(T0_constructs_df[constructs$LoC_vars], 2)
+fa_LoC_2
+
+fa_LoC_1 <- psych::fa(T0_constructs_df[constructs$LoC_vars], 1)
+fa_LoC_1
+
+fa_Tfa <- psych::fa(T0_constructs_df[constructs$TfA_vars])
+fa_Tfa
+
+rm(fa_LoC_1, fa_LoC_2, fa_Tfa)
+```
+### Analyze Missingness in Income Reporting
+
+```{r missingness_table, include=TRUE}
+missingness_table_T0 <- T0_constructs_df %>%
+  select(-Accountnummer) %>%
+  miss_var_summary(order=FALSE)
+
+colnames(missingness_table_T0) <- c("Time", "Number Missing", "Percent Missing")
+
+missingness_table_T1 <- T1_constructs_df %>%
+  select(-Accountnummer) %>%
+  miss_var_summary(order=FALSE)
+
+colnames(missingness_table_T1) <- c("Time", "Number Missing", "Percent Missing")
+
+
+missingness_table_T2 <- T2_constructs_df %>%
+  select(-Accountnummer) %>%
+  miss_var_summary(order=FALSE)
+
+colnames(missingness_table_T2) <- c("Time", "Number Missing", "Percent Missing")
+
+missingness_table_T0
+missingness_table_T1
+missingness_table_T2
+
+rm(missingness_table_T0, missingness_table_T1, missingness_table_T2)
+```
+
+```{r intersection_plot, include=TRUE,fig.cap="Figure 3.1: Missingness per combination of time points."}
+#merge(T1_constructs_df, T2_constructs_df, by="Accountnummer") %>%
+#  gg_miss_upset()
+
+T1_constructs_df %>%
+  gg_miss_upset()
+```
+
+#need for achievement
+```{r}
+NFA_model <- ' NFA =~ NfA_0001 + NfA_0002 + NfA_0003 + NfA_0004'
+
+NFA_fit   <- cfa(NFA_model,data=T0_constructs_df, std.lv=TRUE)
+
+lavaanPlot(model=NFA_fit, node_options = list(fontname = "Helvetica"), edge_options = list(color = "grey"),coefs=TRUE, stars='latent')
+
+summary(NFA_fit)
+```
+
+#Locus of Control
+```{r}
+LoC_model <- ' LoC_internal =~ LoC_0001 + LoC_0002 + LoC_0003 
+               LoC_external =~ LoC_0004 + LoC_0005 + LoC_0006
+               LoC_internal ~~ LoC_external '
+
+LoC_fit   <- cfa(LoC_model,data=T0_constructs_df, std.lv=TRUE)
+lavaanPlot(model=LoC_fit, node_options = list(fontname = "Helvetica"), edge_options = list(color = "grey"), coefs=TRUE, covs=TRUE, stars='latent')
+summary(LoC_fit)
+```
+
+```{r}
+big_bad_model <- 
+  ' NFA =~ NfA_0001 + NfA_0002 + NfA_0003 + NfA_0004
+    LoC_internal =~ LoC_0001 + LoC_0002 + LoC_0003 
+    Entrskills =~ Entrskills_0001 + Entrskills_0002 +Entrskills_0003 + Entrskills_0004 + Entrskills_0005 + Entrskills_0006 + Entrskills_0007
+    LoC_internal ~~ NFA
+    LoC_internal ~~ Entrskills
+    NFA ~~ Entrskills
+'
+
+big_bad_fit <- cfa(big_bad_model,data=T0_constructs_df, std.lv=TRUE)
+lavaanPlot(model=big_bad_fit, node_options = list(fontname = "Helvetica"), edge_options = list(color = "grey"), coefs=TRUE, covs=TRUE, stars='latent')
+
+```
+
+

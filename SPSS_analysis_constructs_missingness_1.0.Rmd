@@ -1,0 +1,87 @@
+---
+title: "Impact Analysis 2018-2019"
+author: "Andrew M. Demetriou"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+output: 
+  html_document:
+          toc: true
+---
+
+```{r setup, include=FALSE}
+library('knitr')        # report generation
+
+library('here')         # file logistics
+library('haven')        # importing SPSS .sav files
+library('labelled')     # working with SPSS labels
+
+library('dplyr')        # code logistics
+library('tidyr')        # pivoting
+library('purrr')        # multiple left joins
+
+library('ggplot2')      # general visualization
+
+library('naniar')       # missingness
+
+library('psych')        # reliability analysis
+
+library('ltm')          # cronbach's alpha
+
+library('mirt')
+
+library('lavaan')       # SEM
+library('lavaanPlot')   # visualizing results
+
+knitr::opts_chunk$set(include = FALSE, echo=FALSE)
+
+#color scheme
+ciri_colors <- c('#fe7241', '#ae5944', '#543c4a', '#67444a')
+```
+
+```{r import_format_data}
+source(here("SPSS_constructs_formatting_1.0.R"))
+
+T0_constructs_df <- spss_df %>% filter(wave == "T0")
+T1_constructs_df <- spss_df %>% filter(wave == "T1")
+T2_constructs_df <- spss_df %>% filter(wave == "T1")
+
+rm(spss_df)
+```
+
+### Analyze Missingness in Income Reporting
+
+```{r missingness_table, include=TRUE}
+missingness_table_T0 <- T0_constructs_df %>%
+  dplyr::select(-Accountnummer) %>%
+  miss_var_summary(order=FALSE) %>%
+  mutate(Wave = "T0")
+
+colnames(missingness_table_T0) <- c("Variable", "Number Missing", "Percent Missing", "Wave")
+
+missingness_table_T1 <- T1_constructs_df %>%
+  dplyr::select(-Accountnummer) %>%
+  miss_var_summary(order=FALSE) %>%
+  mutate(Wave = "T0")
+
+colnames(missingness_table_T1) <- c("Time", "Number Missing", "Percent Missing")
+
+missingness_table_T2 <- T2_constructs_df %>%
+  dplyr::select(-Accountnummer) %>%
+  miss_var_summary(order=FALSE) %>%
+  mutate(Wave = "T0")
+
+colnames(missingness_table_T2) <- c("Time", "Number Missing", "Percent Missing")
+
+missingness_table_T0
+missingness_table_T1
+missingness_table_T2
+
+rm(missingness_table_T0, missingness_table_T1, missingness_table_T2)
+```
+
+```{r intersection_plot, include=TRUE,fig.cap="Figure 3.1: Missingness per combination of time points."}
+#merge(T1_constructs_df, T2_constructs_df, by="Accountnummer") %>%
+#  gg_miss_upset()
+
+T1_constructs_df %>%
+  gg_miss_upset()
+```

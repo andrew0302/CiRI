@@ -1,0 +1,58 @@
+---
+title: "Impact Analysis 2018-2019"
+author: "Andrew M. Demetriou"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+output: 
+  html_document:
+          toc: true
+---
+
+```{r setup, include=FALSE}
+library('knitr')        # report generation
+
+library('here')         # file logistics
+library('haven')        # importing SPSS .sav files
+library('labelled')     # working with SPSS labels
+
+library('tidyselect')   # select columns using tidy syntax
+library('dplyr')        # code logistics
+library('tidyr')        # pivoting
+library('purrr')        # multiple left joins
+
+library('ggplot2')      # general visualization
+
+library('naniar')       # missingness
+
+library('psych')        # reliability analysis
+
+library('ltm')          # cronbach's alpha
+
+library('mirt')
+library('sirt')
+
+library('lavaan')       # SEM
+library('lavaanPlot')   # visualizing results
+
+knitr::opts_chunk$set(include = FALSE, echo=FALSE)
+
+#color scheme
+ciri_colors <- c('#fe7241', '#ae5944', '#543c4a', '#67444a')
+```
+
+```{r import_format_data}
+source(here("SPSS_constructs_formatting_1.0.R"))
+```
+
+```{r}
+T0_constructs_df <- spss_df %>% filter(wave == "T0")
+T1_constructs_df <- spss_df %>% filter(wave == "T1")
+T2_constructs_df <- spss_df %>% filter(wave == "T1")
+```
+
+```{r}
+T0_constructs_df %>%
+  dplyr::select(tidyselect::starts_with("Intention")) %>%
+  mirt(itemtype = 'gpcm') %>%
+  plot()
+```
+
