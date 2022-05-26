@@ -1,0 +1,94 @@
+library('here')         # file logistics
+library('haven')        # importing SPSS .sav files
+library('labelled')     # working with SPSS labels
+
+#SPSS data file path
+data_file_path <- here("data_", "2018_2019_")
+
+#create a list of all files
+data_files     <- list.files(here("data_", "2018_2019_"))
+
+#read in SPSS files
+T0_df <- read_sav(paste0(data_file_path, "/", data_files[3]))
+T1_df <- read_sav(paste0(data_file_path, "/", data_files[4]))
+T2_df <- read_sav(paste0(data_file_path, "/", data_files[5]))
+
+rm(data_file_path, data_files)
+
+
+# Constructs and measures:
+
+##Participant ID:
+Accountnummer <- 'Accountnummer'
+
+##Entrepreneurial Intentions:
+intentions_vars <- c(paste0("Intention_000", seq(1,9)))
+
+##Entrepreneurial Skills 
+Entrskills_vars <- c("Entrskills_0001", "Entrskills_0002", "Entrskills_0003", "Entrskills_0004", "Entrskills_0005", "Entrskills_0006", "Entrskills_0007")
+
+##Personal Skills:
+perskills_vars <- c(paste0("Perskills_000", seq(01,09)), paste0("Perskills_00", seq(10,15)))
+
+##Need for Achievement
+NFA_vars <- c("NfA_0001","NfA_0002","NfA_0003","NfA_0004")
+
+##Locus of Control
+LoC_vars <- c('LoC_0001','LoC_0002','LoC_0003','LoC_0004','LoC_0005','LoC_0006')
+
+#LoC subscales
+LoC_internal_vars <- c('LoC_0001','LoC_0002','LoC_0003')
+LoC_external_vars <- c('LoC_0004','LoC_0005','LoC_0006')
+
+##Tolerance for Ambiguity
+TfA_vars <- c('TfA_0001','TfA_0002','TfA_0003','TfA_0004')
+
+constructs <- list(Entrskills_vars, perskills_vars, NFA_vars, LoC_vars, LoC_internal_vars, LoC_external_vars, TfA_vars)
+names(constructs) <- c("Entrskills_vars", "perskills_vars", "NFA_vars", "LoC_vars", "LoC_internal_vars", "LoC_external_vars", "TfA_vars")
+
+#assemble df
+T0_constructs_df <- T0_df[c(Accountnummer, intentions_vars, Entrskills_vars, perskills_vars, NFA_vars, LoC_vars,TfA_vars)]
+T1_constructs_df <- T1_df[c(Accountnummer, intentions_vars, Entrskills_vars, perskills_vars, NFA_vars, LoC_vars, TfA_vars)]
+T2_constructs_df <- T2_df[c(Accountnummer, intentions_vars, Entrskills_vars, perskills_vars, NFA_vars, LoC_vars, TfA_vars)]
+
+
+#this code lets us look at the question labels:
+#perskills all appear to be phrased in the positive
+#var_label(T0_df[constructs$perskills_vars])
+
+#tfa 3 and 4 should be reverse scored
+#var_label((T0_df[constructs$TfA_vars]))
+
+#Tolerance for Ambiguity reverse scoring
+T0_constructs_df$TfA_0003 <- T0_constructs_df$TfA_0003 * -1
+T1_constructs_df$TfA_0003 <- T1_constructs_df$TfA_0003 * -1
+T2_constructs_df$TfA_0003 <- T2_constructs_df$TfA_0003 * -1
+
+T0_constructs_df$TfA_0004 <- T0_constructs_df$TfA_0004 * -1
+T1_constructs_df$TfA_0004 <- T1_constructs_df$TfA_0004 * -1
+T2_constructs_df$TfA_0004 <- T2_constructs_df$TfA_0004 * -1
+
+#Locus of Control Reverse Scoring
+T0_constructs_df$LoC_0004 <- T0_constructs_df$LoC_0004 * -1
+T0_constructs_df$LoC_0006 <- T0_constructs_df$LoC_0006 * -1
+
+T1_constructs_df$LoC_0004 <- T1_constructs_df$LoC_0004 * -1
+T1_constructs_df$LoC_0006 <- T1_constructs_df$LoC_0006 * -1
+
+T2_constructs_df$LoC_0004 <- T2_constructs_df$LoC_0004 * -1
+T2_constructs_df$LoC_0006 <- T2_constructs_df$LoC_0006 * -1
+
+
+rm(Accountnummer, Entrskills_vars, intentions_vars, LoC_vars, NFA_vars, LoC_internal_vars, LoC_external_vars, perskills_vars, TfA_vars, T0_df, T1_df, T2_df)
+
+T0_constructs_df$wave <- "T0"
+T1_constructs_df$wave <- "T1"
+T2_constructs_df$wave <- "T2"
+
+T0_constructs_df$project <- "EUR_2018_2019"
+T1_constructs_df$project <- "EUR_2018_2019"
+T2_constructs_df$project <- "EUR_2018_2019"
+
+spss_df <- rbind(T0_constructs_df, T1_constructs_df, T2_constructs_df)
+
+rm(T0_constructs_df, T1_constructs_df, T2_constructs_df)
