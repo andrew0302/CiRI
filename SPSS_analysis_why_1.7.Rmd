@@ -120,7 +120,7 @@ freq_df %>%
 most_selected_reason <- freq_df %>% filter(percent == max(freq_df$percent))
 #most_selected_reason
 
-rm(why_df, why_labels, freq_df, i, why_reasons, why_vars)
+rm(why_df, why_labels, freq_df, i, why_reasons, why_vars, extract_freq)
 ```
 
 The most selected reason was "`r most_selected_reason$reasons`", chosen by __`r most_selected_reason$percent`__% of participants. 
