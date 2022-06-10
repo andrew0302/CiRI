@@ -20,6 +20,7 @@ library('tidyr')        # pivoting
 library('ggplot2')      # general visualization
 library('forcats')      # reorder bars
 
+#report options
 knitr::opts_chunk$set(include = FALSE, echo=FALSE)
 
 #color scheme

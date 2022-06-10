@@ -1,0 +1,224 @@
+---
+title: "initial_study"
+author: "Andrew M. Demetriou"
+date: "10/1/2021"
+---
+
+```{r setup, include = FALSE}
+library('knitr')        # report generation
+
+library('here')         # file logistics
+library('dplyr')        # code logistics
+
+library('forcats')      # reorder bars
+library('ggplot2')      # general visualization
+
+#report options
+knitr::opts_chunk$set(echo = FALSE)
+
+#color scheme
+ciri_colors <- c('#fe7241', '#ae5944', '#543c4a', '#67444a')
+```
+
+```{r file_import, include = FALSE}
+#intial measurements; t0
+data_file_path <- here("data_")
+data_folders   <- list.files(data_file_path)
+file_name      <- "responses.csv"
+
+#read in typeform files
+T0_df <- read.csv(paste0(data_file_path, "/", data_folders[3], "/", file_name)) # "Onboarding Form CBL - August 2021"
+T1_df <- read.csv(paste0(data_file_path, "/", data_folders[2], "/", file_name)) # "CBL Feedbak Day 1 & 2"
+
+rm(data_file_path, data_folders, file_name)
+
+#identify participants
+#participant_ID <- "Email.verification"
+```
+
+```{r}
+#extract variables
+#t <- colnames(T0_df)
+#write.csv(as.data.frame(t), "columns.csv")
+```
+
+
+# Why do participants sign up?
+
+```{r why_questions, include = FALSE}
+#column names
+why_vars <- c(
+ "To.improve.my.personal.skills",
+ "To.increase.my.income",
+ "To.become.a..fulltime..creative.entrepreneur",
+ "To.improve.my.entrepreneurial.skills",
+ "To.learn.more.about.entrepreneurialism",
+ "To.start.a..creative..company",
+ "To.learn.how.to.better.manage.my.current.creative.business",
+ "To.better.profile.myself.as.an.entrepreneur",
+ "To.start.seeing.myself.more.as.an.entrepreneur",
+ "Because.I.m.having.difficulty.making.money.from.my.creativity",                   
+ "Because.I.lack.business.knowhow",                   
+ "Because.the.time.I.spend.on.business.is.hurting.my.creativity",                   
+ "Because.I.don.t.have.enough.time.to.develop.a.long.term.strategy",                   
+ "Because.I.want.to.put.a.value.on.my.creativity",
+ "Other"
+ )
+
+#actual wording from questions
+why_reasons <- c(
+  "To improve my personal skills", 
+  "To increase my income", 
+  "To become a (fulltime) creative entrepreneur", 
+  "To improve my entrepreneurial skills",
+  "To learn more about entrepreneurialism",
+  "To start a (creative) company",
+  "To learn how to better manage my current creative business", 
+  "To better profile myself as an entrepreneur",
+  "To start seeing myself more as an entrepreneur",
+  "Because I'm having difficulty making money from my creativity",
+  "Because I lack business knowhow",
+  "Because the time I spend on business is hurting my creativity",
+  "Because I don't have enough time to develop a long term strategy",
+  "Because I want to put a value on my creativity", 
+  "Other")
+
+#select columns
+why_df   <- T0_df %>% select(why_vars)
+colnames(why_df) <- c(paste0("why_000", seq(1,9)), paste0("why_00", seq(10,15)))
+
+```
+
+
+```{r why_dataframe, inlcude = FALSE}
+#responses in columns are strings: convert to numeric
+why_as_numeric <- data.frame(lapply(why_df[,2:15], function(x) as.numeric(x != "")))
+
+#replace columns in original dataframe
+why_df[, 2:15] <- why_as_numeric
+
+#replace NA values with 0
+why_df[is.na(why_df)] <- 0
+why_df[, 1:15] <- lapply(why_df[, 2:15], factor)
+
+#clear trash
+rm(why_as_numeric)
+```
+
+```{r why_plot}
+#extract frequencies from each column in dataframe
+freq_df <- mapply(table, why_df[, 2:16])
+
+#bind lists into a single dataframe
+freq_df <- do.call(rbind, freq_df) %>% data.frame()
+
+#add formatted questions as a column
+freq_df$questions <- why_questions
+
+#remove row names
+rownames(freq_df) <- NULL
+
+#not sure how else to fix this:
+freq_df$X1[freq_df$X1 == 16] <- 0
+
+colnames(freq_df) <- c("not_selected", "selected", "questions")
+
+#reorder by frequency
+freq_df$questions <- factor(freq_df$questions) %>%
+  fct_reorder(freq_df$selected)
+
+#plot
+freq_df %>%
+  ggplot(aes(x=questions, y=selected)) +
+  geom_col() +
+  coord_flip()
+```
+
+## Which module to participants think is the most important?
+
+```{r belang}
+#select column
+belang_df <- factor(T0_df$Which.component.of.this.program.do.you.consider.most.valuable.to.you.at.this.point.)
+
+#convert to frequency table
+belang_df <- data.frame(table(belang_df))
+belang_df$time <- "T0"
+colnames(belang_df) <- c("module", "frequency", "time")
+
+#belang_t2 <- factor(T2_df$Belang_module, val_labels(T2_df$Belang_module))
+#belang_t2 <- data.frame(table(belang_t2))
+#belang_t2$module <- names(val_labels(T2_df$Belang_module))
+#belang_t2$time <- "T2"
+#colnames(belang_t2) <- c("belang_df", "frequency", "module", "time")
+
+#belang_df <- rbind(belang_df, belang_t2)
+
+belang_df %>%
+  ggplot(aes(x=frequency, y=module, fill=time)) +
+  geom_col(stat="identity", position = "dodge")
+```
+
+```{r reason_table}
+reason    <- "Can.you.explain.why.you.chose....field.a3329bb5.67ab.418c.a388.237285d8ecda....."
+reasons <- T0_df[reason]
+#kable(reasons, col.names = "Reasons", align = "l", caption="")
+```
+How do participants make their money?
+
+```{r income, fig.align= 'left'}
+income <- "What.s.your.current.monthly.income"
+percent <- "Roughly..which.percentage.of.your.income.flows.from.business.or.projects.that.you.own."
+
+income_df <- T0_df[income]
+colnames(income_df) <- "income"
+income_df$income <- as.factor(income_df$income)
+income_df %>% ggplot(aes(x=income)) + geom_bar() + coord_flip()
+```
+
+```{r percent, fig.align= 'left'}
+percent_df <- T0_df[percent]
+colnames(percent_df) <- "percent"
+
+percent_df %>% ggplot(aes(percent)) + geom_bar() + coord_flip()
+```
+
+
+```{r income_sources}
+income_sources <- "Which.of.your.activities.provides.you.with.the.bigger.part.of.your.monthly.income"
+sources <- T0_df[income_sources]
+#kable(reasons, col.names = "Reasons", align = "l", caption="")
+```
+
+```{r}
+##Entrepreneurial Skills:
+#df_august_2021[47:53]
+T0_df[47:53]
+
+##Personal Skills:
+#df_august_2021[54:70]
+
+##NFA:71:74
+#df_august_2021[71:74]
+
+##LoC:75:80
+#df_august_2021[75:80]
+
+##TfA:81:84
+#df_august_2021[81:84]
+```
+
+```{r entrepreneurial_intentions}
+##Entrepreneurial Intentions:
+ent_int_df <- T0_df[38:46]
+
+#replace blank strings with NA
+ent_int_df[ent_int_df==""] <-NA
+
+#replace responses with numbers
+ent_int_df[ent_int_df=="Totally agree"] <-5
+ent_int_df[ent_int_df=="Agree"] <-4
+ent_int_df[ent_int_df=="Neutral"] <-3
+ent_int_df[ent_int_df=="Disagree"] <-2
+ent_int_df[ent_int_df=="Totally disagree"] <-1
+```
+
