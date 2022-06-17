@@ -1,0 +1,151 @@
+---
+title: "Werktuig PPO report"
+author: "Andrew M. Demetriou"
+date: "6/17/2022"
+output: html_document
+---
+
+```{r why_setup, include=FALSE}
+library('knitr')              # report generation
+
+library('here')               # file logistics
+
+library('tidyverse')
+library('dplyr')              # code logistics
+library('tidyr')              # pivoting
+
+library('ggplot2')            # general visualization
+library('ggdist')             # raincloud plotting
+library('gghalves')           # raincloud plotting
+
+library('forcats')            # reorder bars
+
+library('RobustRankAggreg')   # rank analysis
+
+#report options
+knitr::opts_chunk$set(include = FALSE, echo=FALSE)
+options(scipen=999)
+
+#color scheme
+ciri_colors <- c('#fe7241', '#ae5944', '#543c4a', '#67444a')
+```
+
+```{r import_data}
+data_file_path <- here("data_", "WerktuigPPO |  FebMar")
+
+data_files     <- list.files(data_file_path)
+
+T0_df <- read.csv(paste0(data_file_path, "/", data_files[1]))
+
+#questions <- colnames(T0_df) %>% as.data.frame()
+
+rm(data_file_path, data_files, file_name)
+```
+
+# Who are our participants?
+
+In this section, we examine who applied to the instrument. 
+
+
+#### Job Titles
+
+```{r job_title, include=TRUE}
+job_title <- "Wat.is.jouw.professionele.titel."
+T0_df[job_title] %>% lapply(., tolower) %>% as.data.frame() %>% count(Wat.is.jouw.professionele.titel.) %>% arrange(desc(n))
+
+rm(job_title)
+```
+Commonly cited titles were photographer, illustrator, interior designer, followed by some kind of coaching. 
+
+#### How are participants making their income?
+
+```{r}
+income_segment <- "Met.welke.activiteit.verdien.je.het.grootste.deel.van.je.omzet."
+
+T0_df[income_segment] %>% lapply(., tolower) %>% as.data.frame() %>% count(Met.welke.activiteit.verdien.je.het.grootste.deel.van.je.omzet.) %>% arrange(desc(n))
+
+rm(income_segment)
+```
+Design was the most cited answer, followed by writing and photography. A couple participants mentioned making the majority of their earnings with an office job. 
+
+#### Why did participants sign up?
+
+Using robust ranking aggregation (https://academic.oup.com/bioinformatics/article/28/4/573/213339?login=false), we rank the lists that participants indicated as reasons for participating. 
+
+```{r}
+reason <- "Waarom.heb.je.je.aangemeld.voor.dit.programma."
+participant_id     <- "X."
+columns <- c(participant_id, reason)
+df <- T0_df[columns]
+
+ranked_lists <- split(df[reason], 1:nrow(df[reason]))
+
+empty_list <- list()
+
+for(i in 1:length(ranked_lists)){
+  empty_list[i] <- lapply(ranked_lists[[i]], strsplit, ",")
+}
+
+for(i in 1:length(empty_list)){
+  empty_list[i] <- lapply(empty_list[[i]], as.character)
+}
+
+ranking <- aggregateRanks(glist = empty_list, N = 12) %>% remove_rownames(.)
+ranking
+
+rm(ranked_lists, empty_list, df, i, reason, participant_id)
+```
+
+```{r}
+skills <- c("Hoeveel.nadruk.denk.je.dat.er.gaat.worden.gelegd.op..Business.skills..", "Hoeveel.nadruk.denk.je.dat.er.gaat.worden.gelegd.op..Artistieke.skills...", "En.hoeveel.nadruk.denk.je.dat.er.gaat.worden.gelegd.op..Psychologische.skills..")
+ 
+df <- T0_df[skills]
+colnames(df) <- c("Business", "Art", "Psychology")
+
+df <- df %>% pivot_longer(cols = c("Business", "Art", "Psychology"), names_to = "Skill", values_to = "Importance")
+```
+```{r}
+df %>%
+  ggplot(aes(x=Skill, y=Importance, fill=Skill)) +
+    ggdist::stat_halfeye(
+      show.legend = FALSE, 
+      adjust = 1,  # the breaks / bins of histogram
+      width = .5, 
+      justification = -.2,
+      .width = c(.5, .95)
+      ) +
+    scale_fill_manual(values=ciri_colors) +
+    geom_boxplot(
+      show.legend = FALSE,
+      width = .12, 
+      coef = 0, 
+      outlier.color = NA
+    )  +
+    gghalves::geom_half_point(
+      show.legend = FALSE, 
+      side="1", 
+      range_scale=.1,
+      alpha = .45
+      ) +
+   scale_y_continuous(
+     position = "right",
+     breaks = seq(0, 10, by = 1),
+     labels = seq(0, 10, by=1)
+     ) +
+  theme_minimal() +
+  theme(axis.title.y = element_blank(), axis.title.x = element_blank())
+```
+```{r}
+missing <- c('Is.er.naast.Business..Artistieke.en.Psychologische.skills.nog.een.soort.skills.die.niet.genoemd.is.en.die.je.wel.erg.belangrijk.vindt..', 'Welke.soort.skills.mis.je.nog.in.de.voorgaande.vragen.en.wil.je.wel.op.focussen.in.de.training.die.je.gaat.doen.')
+
+T0_df[missing]
+
+rm(missing)
+```
+
+```{r}
+sales <- c("Wat.is.je.maandelijkse.omzet.")
+
+t<-T0_df[sales]
+```
+

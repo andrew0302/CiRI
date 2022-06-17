@@ -1,0 +1,90 @@
+---
+title: "Werktuig PPO report"
+author: "Andrew M. Demetriou"
+date: "6/17/2022"
+output: html_document
+---
+
+```{r why_setup, include=FALSE}
+library('knitr')              # report generation
+
+library('here')               # file logistics
+
+library('dplyr')              # code logistics
+library('tidyr')              # pivoting
+
+library('ggplot2')            # general visualization
+library('forcats')            # reorder bars
+
+library('RobustRankAggreg')   # rank analysis
+
+#report options
+knitr::opts_chunk$set(include = FALSE, echo=FALSE)
+
+#color scheme
+ciri_colors <- c('#fe7241', '#ae5944', '#543c4a', '#67444a')
+```
+
+```{r import_data}
+data_file_path <- here("data_", "WerktuigPPO |  FebMar")
+
+data_files     <- list.files(data_file_path)
+
+T0_df <- read.csv(paste0(data_file_path, "/", data_files[1]))
+
+#questions <- colnames(T0_df) %>% as.data.frame()
+
+rm(data_file_path, data_files, file_name)
+```
+
+# Who are our participants?
+
+In this section, we examine who applied to the instrument. 
+
+
+#### Job Titles
+
+```{r job_title, include=TRUE}
+job_title <- "Wat.is.jouw.professionele.titel."
+T0_df[job_title] %>% lapply(., tolower) %>% as.data.frame() %>% count(Wat.is.jouw.professionele.titel.) %>% arrange(desc(n))
+
+rm(job_title)
+```
+Commonly cited titles were photographer, illustrator, interior designer, followed by some kind of coaching. 
+
+#### How are participants making their income?
+
+```{r}
+income_segment <- "Met.welke.activiteit.verdien.je.het.grootste.deel.van.je.omzet."
+
+T0_df[income_segment] %>% lapply(., tolower) %>% as.data.frame() %>% count(Met.welke.activiteit.verdien.je.het.grootste.deel.van.je.omzet.) %>% arrange(desc(n))
+
+rm(income_segment)
+```
+Design was the most cited answer, followed by writing and photography. A couple participants mentioned making the majority of their earnings with an office job. 
+
+#### Why did participants sign up?
+
+```{r}
+reason <- "Waarom.heb.je.je.aangemeld.voor.dit.programma."
+participant_id     <- "X."
+columns <- c(participant_id, reason)
+reason_df <- T0_df[columns]
+
+ranked_lists <- split(reason_df[reason], 1:nrow(reason_df[reason]))
+
+empty_list <- list()
+
+for(i in 1:length(ranked_lists)){
+  empty_list[i] <- lapply(ranked_lists[[i]], strsplit, ",")
+}
+
+#lapply(ranked_lists[[1]], strsplit, ",")
+
+
+#lapply(ranked_lists, function(x) ranked_lists[[x]])
+#lapply(list[[1]], strsplit, ",")
+#lapply(ranked_lists, strsplit, ",")
+#ranked_lists <- lapply(as.list(reason_df[reason]), strsplit, ",")
+#reason_df[1, 2] %>% strsplit(., ",") %>% as.data.frame() %>% mutate(order = seq(1:12))
+```
