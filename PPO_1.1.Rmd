@@ -10,7 +10,7 @@ library('knitr')              # report generation
 
 library('here')               # file logistics
 
-library('tidyverse')
+library('tidyverse')          # code logistics
 library('dplyr')              # code logistics
 library('tidyr')              # pivoting
 
@@ -21,6 +21,8 @@ library('gghalves')           # raincloud plotting
 library('forcats')            # reorder bars
 
 library('RobustRankAggreg')   # rank analysis
+
+library('naniar')             # missingness analysis
 
 #report options
 knitr::opts_chunk$set(include = FALSE, echo=FALSE)
@@ -91,9 +93,9 @@ for(i in 1:length(empty_list)){
 }
 
 ranking <- aggregateRanks(glist = empty_list, N = 12) %>% remove_rownames(.)
-ranking
+kable(ranking)
 
-rm(ranked_lists, empty_list, df, i, reason, participant_id)
+rm(ranked_lists, empty_list, df, i, reason, participant_id, ranking, columns)
 ```
 
 ```{r}
@@ -134,6 +136,8 @@ df %>%
      ) +
   theme_minimal() +
   theme(axis.title.y = element_blank(), axis.title.x = element_blank())
+
+rm(skills)
 ```
 ```{r}
 missing <- c('Is.er.naast.Business..Artistieke.en.Psychologische.skills.nog.een.soort.skills.die.niet.genoemd.is.en.die.je.wel.erg.belangrijk.vindt..', 'Welke.soort.skills.mis.je.nog.in.de.voorgaande.vragen.en.wil.je.wel.op.focussen.in.de.training.die.je.gaat.doen.')
@@ -144,8 +148,89 @@ rm(missing)
 ```
 
 ```{r}
-sales <- c("Wat.is.je.maandelijkse.omzet.")
+# income variable name
+income <- c("Wat.is.je.maandelijkse.omzet.")
+# participant ID
+ID <- "X."
 
-t<-T0_df[sales]
+# working dataframe
+income_t0 <- T0_df %>% select(X., Wat.is.je.maandelijkse.omzet.)
+colnames(income_t0) <- c("participant_ID", "income")
+
+# response categories
+income_t0$income[income_t0$income=="Minder dan €1.000"] <- 1
+income_t0$income[income_t0$income=="€ 1.000 - € 1.500"] <- 2
+income_t0$income[income_t0$income=="€ 1.500 - € 2.000"] <- 3
+income_t0$income[income_t0$income=="€ 2.000 - € 2.500"] <- 4
+income_t0$income[income_t0$income=="€ 2.500 - € 3.000"] <- 5
+income_t0$income[income_t0$income=="€ 3.000 - € 3.500"] <- 6
+income_t0$income[income_t0$income=="€ 3.500 - € 4.000"] <- 7
+income_t0$income[income_t0$income=="€ 4.000 - € 4.500"] <- 8
+income_t0$income[income_t0$income=="€ 4.500 - € 5.000"] <- 9
+income_t0$income[income_t0$income=="Meer dan € 5.000" ] <- 10
+income_t0$income <- na_if(income_t0$income, "Gaat je niks aan")
+
+# time measure
+income_t0$time <- "T0"
 ```
+
+```{r}
+# in the future this will be 'income_wide'
+income_t0$T0 <- income_t0$income
+
+missingness_table <- income_t0 %>%
+  select(T0) %>%
+  miss_var_summary(order=FALSE)
+
+colnames(missingness_table) <- c("Time", "Number Missing", "Percent Missing")
+
+missingness_table
+
+# upset table requires at least two variables
+#income_t0 %>%
+#  select(T0) %>%
+#  gg_miss_upset()
+
+rm(missingness_table)
+```
+
+```{r}
+income_t0 %>%
+  ggplot(aes(x=time, y=income, fill = time)) +
+    ggdist::stat_halfeye(
+      show.legend = FALSE, 
+      adjust = 1,  # the breaks / bins of histogram
+      width = .5, 
+      justification = -.2,
+      .width = c(.5, .95)
+      ) +
+  scale_fill_manual(values=ciri_colors) +
+      geom_boxplot(
+      show.legend = FALSE,
+      width = .12, 
+      coef = 0, 
+      outlier.color = NA
+    ) +
+    gghalves::geom_half_point(
+      show.legend = FALSE, 
+      side="1", 
+      range_scale=.25,
+      alpha = .3
+      ) +
+     scale_y_binned(
+       position = "right",
+       breaks = seq(1, 10, by = 1),
+       labels = c(
+       "<1000", "1000-1500", "1500-2000", 
+       "2000-2500", "2500-3000", "3000-3500", 
+       "3500-4000", "4000-4500", "4500-5000",">5000")
+     ) +
+  theme_minimal() +
+  theme(axis.title.y = element_blank(), axis.title.x = element_blank())
+```
+
+```{r}
+
+```
+
 
