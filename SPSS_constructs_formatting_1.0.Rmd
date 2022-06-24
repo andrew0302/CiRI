@@ -52,7 +52,7 @@ intentions_vars <- c(paste0("Intention_000", seq(1,9)))
 Entrskills_vars <- c("Entrskills_0001", "Entrskills_0002", "Entrskills_0003", "Entrskills_0004", "Entrskills_0005", "Entrskills_0006", "Entrskills_0007")
 
 ##Personal Skills:
-perskills_vars <- c(paste0("Perskills_000", seq(01,09)), paste0("Perskills_00", seq(10,15)))
+perskills_vars <- c(paste0("Perskills_000", seq(01,09)), paste0("Perskills_00", seq(10,17)))
 
 ##Need for Achievement
 NFA_vars <- c("NfA_0001","NfA_0002","NfA_0003","NfA_0004")
@@ -103,6 +103,19 @@ T2_constructs_df$LoC_0006 <- T2_constructs_df$LoC_0006 * -1
 
 rm(Accountnummer, Entrskills_vars, intentions_vars, LoC_vars, NFA_vars, LoC_internal_vars, LoC_external_vars, perskills_vars, TfA_vars, T0_df, T1_df, T2_df)
 ```
+
+```{r}
+#T0_constructs_df <- T0_df[c(Accountnummer, intentions_vars, Entrskills_vars, perskills_vars, NFA_vars, LoC_vars,TfA_vars)]
+
+#val_labels(T0_constructs_df[intentions_vars])
+#var_label(T0_constructs_df[intentions_vars])
+#var_label(T0_constructs_df[Entrskills_vars])
+#var_label(T0_constructs_df[perskills_vars])
+#var_label(T0_constructs_df[NFA_vars])
+#var_label(T0_constructs_df[LoC_vars])
+#var_label(T0_constructs_df[TfA_vars])
+```
+
 
 ```{r}
 T0_constructs_df$wave <- "T0"
