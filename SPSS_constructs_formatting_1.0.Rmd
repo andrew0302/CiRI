@@ -8,20 +8,9 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-#library('knitr')        # report generation
-
 library('here')         # file logistics
 library('haven')        # importing SPSS .sav files
 library('labelled')     # working with SPSS labels
-
-#library('dplyr')        # code logistics
-#library('tidyr')        # pivoting
-#library('purrr')        # multiple left joins
-
-#knitr::opts_chunk$set(include = FALSE, echo=FALSE)
-
-#color scheme
-#ciri_colors <- c('#fe7241', '#ae5944', '#543c4a', '#67444a')
 ```
 
 ```{r import_data}

@@ -1,0 +1,146 @@
+---
+title: "PPO Constructs Reliability Analysis"
+author: "Andrew M. Demetriou"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+output: 
+  html_document:
+          toc: true
+---
+
+```{r setup, include=FALSE}
+library('knitr')        # report generation
+
+library('here')         # file logistics
+
+library('dplyr')        # code logistics
+library('tidyr')        # pivoting
+library('purrr')        # multiple left joins
+
+library('ggplot2')      # general visualization
+
+library('psych')        # reliability analysis
+
+library('mirt')         # item response theory
+
+library('lavaan')       # SEM
+library('lavaanPlot')   # visualizing results
+
+knitr::opts_chunk$set(include = FALSE, echo=FALSE)
+
+#color scheme
+ciri_colors <- c('#fe7241', '#ae5944', '#543c4a', '#67444a')
+```
+
+For overall model: RMSEA <= .06 and SRMSR <= .08 suggest good fit. 
+
+For individual items: RMSEA < .06 suggest adequate fit.
+
+```{r}
+#df <- T0_constructs_df[Entrskills_vars]
+df <- T0_constructs_df[TfA_vars]
+
+alpha <- psych::alpha(df)
+alpha
+
+mod <- (mirt(df, 1, verbose = FALSE, itemtype = 'graded', SE = TRUE))
+
+#model fit for response models with ordinal data
+M2(mod, type = "C2", calcNULL = FALSE, na.rm=TRUE)
+
+itemfit(mod, na.rm="TRUE")
+```
+```{r}
+summary(mod)
+```
+
+
+```{r}
+plot(mod, type = 'trace', theta_lim = c(-3, 3))
+plot(mod, type = 'infotrace', theta_lim = c(-3, 3))
+plot(mod, type = 'infoSE', theta_lim = c(-3, 3))
+#plot(mod, type = 'rxx', theta_lim = c(-3, 3))
+#plot(mod, type = 'score', theta_lim = c(-3, 3))
+```
+```{r}
+big_bad_model <- 
+  ' NFA =~ NfA_0001 + NfA_0002 + NfA_0003 + NfA_0004
+    
+    LoC =~ LoC_0001+ LoC_0002 + LoC_0003 + LoC_0004 + LoC_0005 + LoC_0006
+    
+    Entrskills =~ Entrskills_0001 + Entrskills_0002 +Entrskills_0003 + Entrskills_0004 + Entrskills_0005 + Entrskills_0006 + Entrskills_0007
+    
+    TfA =~ TfA_0001 + TfA_0002 + TfA_0003 + TfA_0004
+    
+    NFA ~~ Entrskills
+    TfA ~~ Entrskills
+    LoC ~~ Entrskills
+    TfA ~~ NFA
+    LoC ~~ NFA
+    TfA ~~ LoC
+ '
+```
+
+```{r}
+#big_bad_fit_1 <- cfa(big_bad_model,data=T0_constructs_df, std.lv=TRUE)
+#fit <- big_bad_fit_1
+#lavInspect(fit, "optim.gradient")
+#lavTech(fit, "optim.gradient")
+
+big_bad_fit_2 <- cfa(big_bad_model,data=T0_constructs_df, std.lv=TRUE, bounds =
+TRUE)
+```
+```{r}
+get_model_fit <- function(model, name){
+  #RMSE, accordig to Smith & McMillan 2001
+  indices <- c("rmsea.ci.upper", "rmsea.ci.lower", "rmsea", "rmsea.pvalue")
+  names <- c("upper", "lower", "rmsea", "pvalue")
+  
+  #draw complete set of fit indices
+  fit_indices <- fitmeasures(model)
+  #RMSEA subset as named vector
+  fit_subset <- fit_indices[indices]
+  #add model name for reference
+  fit_subset$model <- name
+  #named vector to row in dataframe
+  #fit_subset <- fit_subset %>% t() %>% as.data.frame() 
+  return(as.data.frame(fit_subset))
+}
+```
+
+```{r}
+print_rmsea <- function(model_fit) {
+  paste0("RMSEA is ",
+         round(model_fit$rmsea, 3), 
+         ", 95% CI: ", 
+         round(model_fit$rmsea.ci.lower, 2), 
+         ", ", 
+         round(model_fit$rmsea.ci.upper, 2), 
+         ", p = ", 
+         round(model_fit$rmsea.pvalue, 5)
+         )
+}
+model_fit <- get_model_fit(big_bad_fit_2, "big_bad_fit_2")
+print_rmsea(model_fit)
+
+```
+
+```{r}
+small_model <- '
+TfA =~ TfA_0001 + TfA_0002 + TfA_0003 + TfA_0004'
+
+small_fit <- cfa(small_model,data=df, std.lv=TRUE)
+
+#model_fit <- get_model_fit(small_fit, "small_fit")
+#print_rmsea(model_fit)
+
+
+plot_model(small_fit)
+```
+
+
+```{r}
+plot_model <- function(model) {
+  lavaanPlot(model=model, node_options = list(fontname = "Helvetica"), edge_options = list(color = "grey"), coefs=TRUE, covs=TRUE, stars='latent')
+}
+plot_model(big_bad_fit_2)
+```

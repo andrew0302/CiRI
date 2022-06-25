@@ -172,7 +172,20 @@ T0_constructs_df <- data.frame(lapply(T0_constructs_df, function(x) {
 
 T0_constructs_df <- T0_constructs_df %>% mutate_all(na_if,"")
 
+#workaround: despite indicating 'as.numeric()' above, it still creates a character vector
+Accountnummer <- T0_constructs_df$Accountnummer
+temp_df <- T0_constructs_df %>% select(-Accountnummer)
+temp_df <-lapply(temp_df, as.numeric) %>% as.data.frame()
+temp_df$Accountnummer <- Accountnummer
+T0_constructs_df <- temp_df %>% select(Accountnummer, everything())
+
+#reverse scoring
+T0_constructs_df$TfA_0003 <- T0_constructs_df$TfA_0003 * -1
+T0_constructs_df$TfA_0004 <- T0_constructs_df$TfA_0004 * -1
+T0_constructs_df$LoC_0004 <- T0_constructs_df$LoC_0004 * -1
 
 #scale_terms <- c("Helemaal niet mee eens", "Niet mee eens", "Neutraal", "Mee eens", "Heel erg mee eens")
 #scale_numbers <- c("0","1", "2", "3", "4")
+
+rm(temp_df)
 ```
