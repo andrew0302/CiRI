@@ -36,8 +36,8 @@ For overall model: RMSEA <= .06 and SRMSR <= .08 suggest good fit.
 For individual items: RMSEA < .06 suggest adequate fit.
 
 ```{r}
-#df <- T0_constructs_df[Entrskills_vars]
-df <- T0_constructs_df[TfA_vars]
+df <- T0_constructs_df[Entrskills_vars]
+#df <- T0_constructs_df[TfA_vars]
 
 alpha <- psych::alpha(df)
 alpha
@@ -134,7 +134,7 @@ small_fit <- cfa(small_model,data=df, std.lv=TRUE)
 #print_rmsea(model_fit)
 
 
-plot_model(small_fit)
+#plot_model(small_fit)
 ```
 
 
