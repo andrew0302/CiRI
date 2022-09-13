@@ -14,6 +14,10 @@ library('tidyverse')          # code logistics
 library('dplyr')              # code logistics
 library('tidyr')              # pivoting
 
+library('wordcloud')          # word cloud plotting
+library('RColorBrewer')       # custom color pallette
+library('tidytext')           # text mining
+
 library('ggplot2')            # general visualization
 library('ggdist')             # raincloud plotting
 library('gghalves')           # raincloud plotting
@@ -53,44 +57,50 @@ In this section, we examine who applied to the instrument.
 
 #https://stackoverflow.com/questions/35904182/word2vec-for-text-mining-categories/35904557#35904557
 
+
+```{r job_title, include=TRUE}
+job_title <- "Wat.is.jouw.professionele.titel."
+T0_df[job_title] %>% lapply(., tolower) %>% as.data.frame() %>% count(Wat.is.jouw.professionele.titel.) %>% arrange(desc(n)) #%>%
+  #knitr::kable()
+
+rm(job_title)
+```
+Commonly cited titles were photographer, illustrator, interior designer, followed by some kind of coaching. 
+
 ```{r}
-library(wordcloud)
-library(RColorBrewer)
-#library(tm)
-library(tidytext)
-library(tidyverse)
-
-
 words <- T0_df$Wat.is.jouw.professionele.titel. |> 
   as.data.frame() |>
   rename("text" = "T0_df$Wat.is.jouw.professionele.titel.") |>
   unnest_tokens(word, text) |> 
   count(word, sort=TRUE) 
 ```
+
 ```{r}
 wordcloud(words = words$word, freq = words$n, min.freq = 1, max.words = 200, random.order = TRUE, rot.per=0.45, colors = brewer.pal(8, "Dark2"))
 ```
 
-
-```{r job_title, include=TRUE}
-job_title <- "Wat.is.jouw.professionele.titel."
-T0_df[job_title] %>% lapply(., tolower) %>% as.data.frame() %>% count(Wat.is.jouw.professionele.titel.) %>% arrange(desc(n)) %>%
-  knitr::kable()
-
-rm(job_title)
-```
-Commonly cited titles were photographer, illustrator, interior designer, followed by some kind of coaching. 
 
 #### How are participants making their income?
 
 ```{r}
 income_segment <- "Met.welke.activiteit.verdien.je.het.grootste.deel.van.je.omzet."
 
-T0_df[income_segment] %>% lapply(., tolower) %>% as.data.frame() %>% count(Met.welke.activiteit.verdien.je.het.grootste.deel.van.je.omzet.) %>% arrange(desc(n)) %>% knitr::kable()
+T0_df[income_segment] %>% lapply(., tolower) %>% as.data.frame() %>% count(Met.welke.activiteit.verdien.je.het.grootste.deel.van.je.omzet.) #%>% arrange(desc(n)) %>% knitr::kable()
 
 rm(income_segment)
 ```
 Design was the most cited answer, followed by writing and photography. A couple participants mentioned making the majority of their earnings with an office job. 
+
+```{r}
+words <- T0_df$Met.welke.activiteit.verdien.je.het.grootste.deel.van.je.omzet. |> 
+  as.data.frame() |>
+  rename("text" = "T0_df$Met.welke.activiteit.verdien.je.het.grootste.deel.van.je.omzet.") |>
+  unnest_tokens(word, text) |> 
+  count(word, sort=TRUE) 
+
+wordcloud(words = words$word, freq = words$n, min.freq = 1, max.words = 200, random.order = TRUE, rot.per=0.45, colors = brewer.pal(8, "Dark2"))
+```
+
 
 #### Why did participants sign up?
 
