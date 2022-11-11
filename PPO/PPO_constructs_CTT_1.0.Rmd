@@ -1,0 +1,141 @@
+---
+title: "PPO Constructs Reliability Analysis"
+author: "Andrew M. Demetriou"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+output: 
+  html_document:
+          toc: true
+---
+
+```{r setup, include=FALSE}
+#library('knitr')        # report generation
+
+library('here')         # file logistics
+
+library('tidyverse')    # code logistics
+
+library('ggplot2')      # general visualization
+library('cowplot')      # multiple plots
+
+library('psych')        # reliability analysis
+
+# custom script to format dataframes
+source((here("PPO", "PPO_constructs_fomatting_1.1.R")))
+
+knitr::opts_chunk$set(include = FALSE, echo=FALSE)
+
+#color scheme
+ciri_colors <- c('#fe7241', '#ae5944', '#543c4a', '#67444a')
+```
+
+```{r}
+alpha_df_row <- function(variable_list, name){
+  
+  # compute object
+  alpha_list <- psych::alpha(T0_constructs_df[variable_list])
+  
+  # extract 95% CI
+  lower = alpha_list$total$raw_alpha - 1.96 * alpha_list$total$ase |> round(2)
+  estimate = alpha_list$total$raw_alpha
+  upper = alpha_list$total$raw_alpha + 1.96 * alpha_list$total$ase
+  
+  #format into DF row
+  df <- c(lower, estimate, upper) |> as.data.frame() |> t() |> as.data.frame()
+  rownames(df) <- NULL
+  colnames(df) <- c("lower", "alpha", "upper")
+  df$var <- name
+  
+  
+  return(df)
+}
+```
+
+
+```{r}
+LoC_alpha <- alpha_df_row(LoC_vars, "LoC")
+NfA_alpha <- alpha_df_row(NFA_vars, "NfA")
+TfA_alpha <- alpha_df_row(TfA_vars, "TfA")
+Entrskills_alpha <- alpha_df_row(Entrskills_vars, "Entrskills")
+
+alpha_table_pre <-list(LoC_alpha, NfA_alpha, TfA_alpha, Entrskills_alpha) |> reduce(full_join)
+
+rm(LoC_alpha, NfA_alpha, TfA_alpha, Entrskills_alpha)
+```
+
+```{r}
+diagram_fa <- function(df, vars, factors=1){
+  df[vars] |>
+    psych::fa(nfactors = factors) |>
+    psych::fa.diagram()
+}
+```
+
+```{r}
+#LoC_0001:"Als.ik.plannen.maak.weet.ik.zeker.dat.ze.werken" 
+diagram_fa(T0_constructs_df, LoC_vars, factors = 2)
+
+LoC_vars <- LoC_vars[! LoC_vars %in% "LoC_0001"] 
+```
+
+```{r}
+# NFA_0001:"Ik.doe.altijd.goed.mijn.best..ook.wanneer.het.moeilijk.is",
+# NFA_0002:"Ik.stop.veel.energie.in.het.verbeteren.van.mijn..werk.resultaten"
+# NFA_0003:"Ik.probeer.altijd.extra.verantwoordelijkheden.te.nemen",
+# NFA_0004:"Ik.probeer.betere.resultaten.te.halen.dan.mijn.vakgenoten"
+diagram_fa(T0_constructs_df, NFA_vars)
+
+NFA_vars <- NFA_vars[!NFA_vars %in% c("NfA_0003", "NfA_0004")]
+```
+
+```{r}
+# TfA:0001:"Niets.is.interessanter.dan.leven.onder.steeds.veranderende.omstandigheden"
+# TfA:0002:"Innovatieve.mensen.en.mensen.die.risico.s.nemen.bereiken.meer.in.het.leven.dan.geordende.mensen",
+# TfA:0003:"Als.je.echt.wilt.genieten.van.je.vakantie..moet.je.deze.goed.plannen",
+# TfA:0004:"Hetzelfde.doen.op.dezelfde.plek.voor.een.lange.periode.leidt.tot.een.gelukkig.leven"
+diagram_fa(T0_constructs_df, TfA_vars, factors = 1)
+diagram_fa(T0_constructs_df, TfA_vars, factors = 2)
+
+fa(T0_constructs_df[TfA_vars], nfactors = 2)
+```
+```{r}
+# Entrskills_0002: "Ik.ben.creatief"
+# Entrskills_0004: "Ik.ben.een.goede.leider"
+diagram_fa(T0_constructs_df, Entrskills_vars, factors = 1)
+
+Entrskills_vars <- Entrskills_vars[!Entrskills_vars %in% c("Entrskills_0002", "Entrskills_0004")]
+```
+```{r}
+LoC_alpha <- alpha_df_row(LoC_vars, "LoC")
+NfA_alpha <- alpha_df_row(NFA_vars, "NfA")
+TfA_alpha <- alpha_df_row(TfA_vars, "TfA")
+Entrskills_alpha <- alpha_df_row(Entrskills_vars, "Entrskills")
+
+alpha_table_post <-list(LoC_alpha, NfA_alpha, TfA_alpha, Entrskills_alpha) |> reduce(full_join)
+```
+```{r}
+alpha_table_pre
+alpha_table_post
+```
+```{r}
+plot_alpha_table <- function(alpha_table){
+  #alpha_table <- alpha_table_pre
+  alpha_table |>
+    ggplot(aes(x=var, y=alpha, color = var)) +
+      geom_point() +
+      geom_errorbar(aes(ymin=lower, ymax=upper, color=var)) +
+      theme_minimal() +
+      ylim(0, 1) +
+      geom_hline(yintercept = .6, linetype = "dashed", color = "red", size = 0.3) +
+      theme(
+        axis.title.x = element_blank(), 
+        axis.text.x = element_blank())
+}
+```
+
+```{r}
+p1 <- plot_alpha_table(alpha_table_pre) + ggtitle("alpha, pre")
+p2 <- plot_alpha_table(alpha_table_post) + ggtitle("alpha, post")
+
+plot_grid(p1, p2, labels = c('A', 'B'), label_size = 12)
+```
+
