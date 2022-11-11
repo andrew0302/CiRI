@@ -11,10 +11,22 @@ library('dplyr')
 ```
 
 ```{r}
-data_file_path <- here::here("data_", "WerktuigPPO |  FebMar")
-data_files     <- list.files(data_file_path)
+#define data folder
+data_folder <- here("data_")
 
-T0_df <- read.csv(paste0(data_file_path, "/", data_files[1]))
+#names of subfolders
+sub_folders <- c("WerktuigPPO |  FebMar", "WerktuigPPO |  May", "WerktuigPPO |  June")
+
+#make list of dataframes for all subfolders
+list_of_data_frames <- lapply(sub_folders, function(x){
+  read.csv(here(data_folder, x, 'responses.csv'))
+})
+
+#name subfolders
+names(list_of_data_frames) <- sub_folders
+
+#bind into a single dataframe
+T0_df <- bind_rows(list_of_data_frames, .id = ".id")
 
 questions <- colnames(T0_df) %>% as.data.frame()
 

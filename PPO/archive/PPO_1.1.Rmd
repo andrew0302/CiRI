@@ -37,7 +37,7 @@ ciri_colors <- c('#fe7241', '#ae5944', '#543c4a', '#67444a')
 ```
 
 ```{r import_data}
-data_file_path <- here("data_", "WerktuigPPO |  FebMar")
+data_file_path <- ("data_/WerktuigPPO |  FebMar")
 
 data_files     <- list.files(data_file_path)
 

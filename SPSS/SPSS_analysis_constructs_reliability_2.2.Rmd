@@ -38,7 +38,10 @@ ciri_colors <- c('#fe7241', '#ae5944', '#543c4a', '#67444a')
 ```
 
 ```{r import_format_data}
-source(here("SPSS_constructs_formatting_1.0.R"))
+source(here("SPSS", "SPSS_constructs_formatting_1.0.R"))
+
+# var_label(x) to get questions
+# val_label(x) to get likert response labels
 ```
 
 ```{r get_alpha_function}
