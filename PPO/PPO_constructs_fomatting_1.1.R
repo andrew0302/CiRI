@@ -21,7 +21,7 @@ T0_df <- bind_rows(list_of_data_frames, .id = ".id")
 
 questions <- colnames(T0_df) %>% as.data.frame()
 
-rm(data_file_path, data_files, file_name)
+rm(data_file_path, data_files, file_name, data_folder, sub_folders)
 
 
 ##Entrepreneurial Intentions:
@@ -147,23 +147,23 @@ rm(
   intentions_colnames, intentions_df)
 
 T0_constructs_df <- data.frame(lapply(T0_constructs_df, function(x) {
-                  gsub("Helemaal niet mee eens", as.numeric(0), x)
+                  gsub("Helemaal niet mee eens", as.numeric(1), x)
               }))
 
 T0_constructs_df <- data.frame(lapply(T0_constructs_df, function(x) {
-                  gsub("Niet mee eens", as.numeric(1), x)
+                  gsub("Niet mee eens", as.numeric(2), x)
               }))
 
 T0_constructs_df <- data.frame(lapply(T0_constructs_df, function(x) {
-                  gsub("Neutraal", as.numeric(2), x)
+                  gsub("Neutraal", as.numeric(3), x)
               }))
 
 T0_constructs_df <- data.frame(lapply(T0_constructs_df, function(x) {
-                  gsub("Mee eens", as.numeric(3), x)
+                  gsub("Mee eens", as.numeric(4), x)
               }))
 
 T0_constructs_df <- data.frame(lapply(T0_constructs_df, function(x) {
-                  gsub("Helemaal mee eens", as.numeric(4), x)
+                  gsub("Helemaal mee eens", as.numeric(5), x)
               }))
 
 T0_constructs_df <- T0_constructs_df %>% mutate_all(na_if,"")
@@ -179,10 +179,10 @@ T0_constructs_df <- temp_df %>% select(Accountnummer, everything())
 T0_constructs_df$TfA_0003 <- T0_constructs_df$TfA_0003 * -1
 T0_constructs_df$TfA_0004 <- T0_constructs_df$TfA_0004 * -1
 T0_constructs_df$LoC_0004 <- T0_constructs_df$LoC_0004 * -1
-T0_constructs_df$LoC_0004 <- T0_constructs_df$LoC_0005 * -1
-T0_constructs_df$LoC_0004 <- T0_constructs_df$LoC_0006 * -1
+T0_constructs_df$LoC_0005 <- T0_constructs_df$LoC_0005 * -1
+T0_constructs_df$LoC_0006 <- T0_constructs_df$LoC_0006 * -1
 
 #scale_terms <- c("Helemaal niet mee eens", "Niet mee eens", "Neutraal", "Mee eens", "Heel erg mee eens")
-#scale_numbers <- c("0","1", "2", "3", "4")
+#scale_numbers <- c("1","2", "3", "4", "5")
 
 rm(temp_df, constructs, list_of_data_frames, data_folder, Accountnummer, sub_folders)
