@@ -1,0 +1,174 @@
+---
+title: "PPO Constructs Reliability Analysis"
+author: "Andrew M. Demetriou"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+output: 
+  html_document:
+          toc: true
+---
+
+```{r setup, include=FALSE}
+library('here')         # file logistics
+
+library('tidyverse')    # code logistics
+
+library('lavaan')       # SEM
+library('lavaanPlot')   # visualizing model
+library('semPlot')      # visualizing model
+library('corrplot')     # visualizing correlations
+library('ggplot2')      # visualizing distributions
+
+source((here("PPO", "PPO_constructs_fomatting_1.1.R")))
+
+#color scheme
+ciri_colors <- c('#fe7241', '#ae5944', '#543c4a', '#67444a')
+```
+
+For overall model: RMSEA <= .06 and SRMSR <= .08 suggest good fit. 
+For individual items: RMSEA < .06 suggest adequate fit.
+
+
+```{r}
+big_model <- 
+  ' 
+    NFA =~ NfA_0001 + NfA_0002 + NfA_0003 + NfA_0004
+    
+    LoC =~ LoC_0001+ LoC_0002 + LoC_0003 + LoC_0004 + LoC_0005 + LoC_0006
+    
+    Entrskills =~ Entrskills_0001 + Entrskills_0002 +Entrskills_0003 + Entrskills_0004 + Entrskills_0005 + Entrskills_0006 + Entrskills_0007
+    
+    TfA =~ TfA_0001 + TfA_0002 + TfA_0003 + TfA_0004
+    
+    NFA ~~ Entrskills
+    TfA ~~ Entrskills
+    LoC ~~ Entrskills
+    TfA ~~ NFA
+    LoC ~~ NFA
+    TfA ~~ LoC
+ '
+```
+
+```{r}
+big_fit <- cfa(big_model,data=T0_constructs_df, std.lv=TRUE, bounds =
+TRUE)
+```
+
+```{r}
+get_model_fit <- function(model, name){
+  #RMSE, accordig to Smith & McMillan 2001
+  indices <- c("rmsea.ci.upper", "rmsea.ci.lower", "rmsea", "rmsea.pvalue")
+  names <- c("upper", "lower", "rmsea", "pvalue")
+  
+  #draw complete set of fit indices
+  fit_indices <- fitmeasures(model)
+  #RMSEA subset as named vector
+  fit_subset <- fit_indices[indices]
+  #add model name for reference
+  fit_subset$model <- name
+  #named vector to row in dataframe
+  #fit_subset <- fit_subset %>% t() %>% as.data.frame() 
+  return(as.data.frame(fit_subset))
+}
+```
+
+```{r}
+print_rmsea <- function(model_fit) {
+  paste0("RMSEA is ",
+         round(model_fit$rmsea, 3), 
+         ", 95% CI: ", 
+         round(model_fit$rmsea.ci.lower, 2), 
+         ", ", 
+         round(model_fit$rmsea.ci.upper, 2), 
+         ", p = ", 
+         round(model_fit$rmsea.pvalue, 5)
+         )
+}
+model_fit <- get_model_fit(big_fit, "big_fit")
+print_rmsea(model_fit)
+```
+
+
+```{r}
+plot_model <- function(model) {
+  lavaanPlot(model=model, node_options = list(fontname = "Helvetica"), edge_options = list(color = "grey"), coefs=TRUE, covs=TRUE, stars='latent')
+}
+plot_model(big_fit)
+```
+
+```{r}
+small_model <- '
+    Entrskills =~ Entrskills_0001 + Entrskills_0002 +Entrskills_0003 + Entrskills_0004 + Entrskills_0005 + Entrskills_0006 + Entrskills_0007
+    
+    TfA =~ TfA_0001 + TfA_0002 + TfA_0003 + TfA_0004
+    
+    TfA ~~ Entrskills
+'
+```
+
+```{r}
+small_fit <- cfa(small_model,data=T0_constructs_df, std.lv=TRUE, bounds =
+TRUE)
+```
+
+```{r}
+#plot_model(small_fit)
+semPaths(small_fit, "est", layout = "spring", node.label.cex=1.5, edge.label.cex = 1, edge.color = "black", style = "lisrel")
+```
+
+```{r}
+middle_model <- 
+  ' 
+    
+    LoC =~ LoC_0001+ LoC_0002 + LoC_0003 + LoC_0004 + LoC_0005 + LoC_0006
+    
+    Entrskills =~ Entrskills_0001 + Entrskills_0002 +Entrskills_0003 + Entrskills_0004 + Entrskills_0005 + Entrskills_0006 + Entrskills_0007
+    
+    TfA =~ TfA_0001 + TfA_0002 + TfA_0003 + TfA_0004
+    
+    TfA ~~ Entrskills
+    LoC ~~ Entrskills
+    TfA ~~ LoC
+ '
+
+middle_fit <- cfa(middle_model,data=T0_constructs_df, std.lv=TRUE, bounds =
+TRUE)
+
+model_fit <- get_model_fit(middle_fit, "middle_fit")
+print_rmsea(model_fit)
+```
+
+```{r}
+#scores_df <- lavPredict(big_fit) |> as.data.frame() |> pivot_longer(cols = c("LoC", "Entrskills", "TfA", "NFA"), names_to = "construct")
+#scores_df <- lavPredict(small_fit) |> as.data.frame() |> pivot_longer(cols = c("Entrskills", "TfA"), names_to = "construct")
+scores_df <- lavPredict(middle_fit) |> as.data.frame() |> pivot_longer(cols = c("LoC", "Entrskills", "TfA"), names_to = "construct")
+```
+
+```{r}
+scores_df |>
+  ggplot(aes(x=construct, y=value, fill=construct)) +
+    ggdist::stat_halfeye(
+      show.legend = FALSE, 
+      adjust = 1,  # the breaks / bins of histogram
+      width = .5, 
+      justification = -.2,
+      .width = c(.5, .95)
+      ) +
+    scale_fill_manual(values=ciri_colors) +
+    geom_boxplot(
+      show.legend = FALSE,
+      width = .12, 
+      coef = 0, 
+      outlier.color = NA
+    )  +
+    gghalves::geom_half_point(
+      show.legend = FALSE, 
+      side="1", 
+      range_scale=.1,
+      alpha = .45
+      ) +
+  theme_minimal() +
+  theme(axis.title.y = element_blank(), axis.title.x = element_blank()) 
+```
+
+
+

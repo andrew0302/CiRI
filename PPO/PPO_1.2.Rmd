@@ -1,0 +1,388 @@
+---
+title: "Werktuig PPO report"
+author: "Andrew M. Demetriou"
+date: "6/17/2022"
+output: html_document
+---
+
+```{r why_setup, include=FALSE}
+library('knitr')              # report generation
+
+library('here')               # file logistics
+
+library('tidyverse')          # code logistics
+library('dplyr')              # code logistics
+library('tidyr')              # pivoting
+
+library('wordcloud')          # word cloud plotting
+library('RColorBrewer')       # custom color pallette
+library('tidytext')           # text mining
+
+library('ggplot2')            # general visualization
+library('ggdist')             # raincloud plotting
+library('gghalves')           # raincloud plotting
+
+library('forcats')            # reorder bars
+
+library('RobustRankAggreg')   # rank analysis
+library('kableExtra')         # table visualization
+
+library('naniar')             # missingness analysis
+
+#report options
+knitr::opts_chunk$set(include = FALSE, echo=FALSE)
+options(scipen=999)
+
+#color scheme
+ciri_colors <- c('#fe7241', '#ae5944', '#543c4a', '#67444a')
+```
+
+```{r import_data}
+#define data folder
+data_folder <- here("data_")
+
+#names of subfolders
+sub_folders <- c("WerktuigPPO |  FebMar", "WerktuigPPO |  May", "WerktuigPPO |  June")
+
+#make list of dataframes for all subfolders
+list_of_data_frames <- lapply(sub_folders, function(x){
+  read.csv(here(data_folder, x, 'responses.csv'))
+})
+
+#name subfolders
+names(list_of_data_frames) <- sub_folders
+
+#bind into a single dataframe
+T0_df <- bind_rows(list_of_data_frames, .id = ".id")
+
+#questions <- colnames(T0_df) %>% as.data.frame()
+
+rm(data_folder, sub_folders, list_of_data_frames)
+```
+
+# Who are our participants?
+
+In this section, we examine who applied to the instrument. 
+
+
+#### Job Titles
+
+#https://stackoverflow.com/questions/35904182/word2vec-for-text-mining-categories/35904557#35904557
+
+
+```{r job_title, include=TRUE}
+job_title <- "Wat.is.jouw.professionele.titel."
+
+T0_df[job_title] %>% lapply(., tolower) %>% as.data.frame() %>% count(Wat.is.jouw.professionele.titel.) %>% arrange(desc(n)) 
+
+rm(job_title)
+```
+Commonly cited titles were photographer, illustrator, interior designer, followed by some kind of coaching. 
+
+```{r}
+words <- T0_df$Wat.is.jouw.professionele.titel. |> 
+  as.data.frame() |>
+  rename("text" = "T0_df$Wat.is.jouw.professionele.titel.") |>
+  unnest_tokens(word, text) |> 
+  count(word, sort=TRUE) 
+
+wordcloud(words = words$word, freq = words$n, min.freq = 1, max.words = 200, random.order = TRUE, rot.per=0.45, colors = brewer.pal(8, "Dark2"), scale=c(3, .5))
+```
+
+#### How are participants making their income?
+
+```{r}
+income_segment <- "Met.welke.activiteit.verdien.je.het.grootste.deel.van.je.omzet."
+
+T0_df[income_segment] %>% lapply(., tolower) %>% as.data.frame() %>% count(Met.welke.activiteit.verdien.je.het.grootste.deel.van.je.omzet.) #%>% arrange(desc(n)) %>% knitr::kable()
+
+rm(income_segment)
+```
+Design was the most cited answer, followed by writing and photography. A couple participants mentioned making the majority of their earnings with an office job. 
+
+```{r}
+words <- T0_df$Met.welke.activiteit.verdien.je.het.grootste.deel.van.je.omzet. |> 
+  as.data.frame() |>
+  rename("text" = "T0_df$Met.welke.activiteit.verdien.je.het.grootste.deel.van.je.omzet.") |>
+  unnest_tokens(word, text) |> 
+  count(word, sort=TRUE) 
+
+wordcloud(words = words$word, freq = words$n, min.freq = 1, max.words = 200, random.order = TRUE, rot.per=0.45, colors = brewer.pal(8, "Dark2"), scale=c(3, .5))
+
+rm(words)
+```
+
+
+#### Why did participants sign up?
+
+Using robust ranking aggregation (https://academic.oup.com/bioinformatics/article/28/4/573/213339?login=false), we rank the lists that participants indicated as reasons for participating. 
+
+```{r}
+#for exporting tables as images
+#webshot::install_phantomjs()
+```
+
+
+```{r}
+reason <- "Waarom.heb.je.je.aangemeld.voor.dit.programma."
+participant_id     <- "X."
+columns <- c(participant_id, reason)
+df <- T0_df[columns]
+
+ranked_lists <- split(df[reason], 1:nrow(df[reason]))
+
+empty_list <- list()
+
+for(i in 1:length(ranked_lists)){
+  empty_list[i] <- lapply(ranked_lists[[i]], strsplit, ",")
+}
+
+for(i in 1:length(empty_list)){
+  empty_list[i] <- lapply(empty_list[[i]], as.character)
+}
+```
+
+```{r}
+aggregateRanks(glist = empty_list, N = 12) |> 
+  remove_rownames() |>
+  kable() |>
+  kable_styling(bootstrap_options = c("striped", "bordered", "condensed"), full_width = F) |>
+  #as_image()
+  save_kable(file = here("PPO", "visualizations", "reasons_ranking.png"), zoom = 2)
+
+rm(ranked_lists, empty_list, df, i, reason, participant_id, ranking, columns)
+```
+
+
+```{r}
+skills <- c("Hoeveel.nadruk.denk.je.dat.er.gaat.worden.gelegd.op..Business.skills..", "Hoeveel.nadruk.denk.je.dat.er.gaat.worden.gelegd.op..Artistieke.skills...", "En.hoeveel.nadruk.denk.je.dat.er.gaat.worden.gelegd.op..Psychologische.skills..")
+ 
+df <- T0_df[skills]
+colnames(df) <- c("Business", "Art", "Psychology")
+
+df <- df %>% pivot_longer(cols = c("Business", "Art", "Psychology"), names_to = "Skill", values_to = "Importance")
+```
+
+
+```{r}
+df %>%
+  ggplot(aes(x=Skill, y=Importance, fill=Skill)) +
+    ggdist::stat_halfeye(
+      show.legend = FALSE, 
+      adjust = 1,  # the breaks / bins of histogram
+      width = .5, 
+      justification = -.2,
+      .width = c(.5, .95)
+      ) +
+    scale_fill_manual(values=ciri_colors) +
+    geom_boxplot(
+      show.legend = FALSE,
+      width = .12, 
+      coef = 0, 
+      outlier.color = NA
+    )  +
+    gghalves::geom_half_point(
+      show.legend = FALSE, 
+      side="1", 
+      range_scale=.1,
+      alpha = .45
+      ) +
+   scale_y_continuous(
+     position = "right",
+     breaks = seq(0, 10, by = 1),
+     labels = seq(0, 10, by=1)
+     ) +
+  theme_minimal() +
+  theme(axis.title.y = element_blank(), axis.title.x = element_blank()) 
+  #ggsave()
+
+#rm(skills)
+```
+```{r}
+columns <- c(skills, "X.")
+df <- T0_df[columns]
+colnames(df) <- c("Business", "Artistic", "Psychology", "participant_ID")
+
+mean(df$Business > 7)
+mean(df$Psychology > 7)
+mean(df$Artistic)
+
+library(Hmisc)
+df |> select(-participant_ID) |> as.matrix() |> rcorr()
+```
+
+
+
+```{r}
+missing <- c('Is.er.naast.Business..Artistieke.en.Psychologische.skills.nog.een.soort.skills.die.niet.genoemd.is.en.die.je.wel.erg.belangrijk.vindt..', 'Welke.soort.skills.mis.je.nog.in.de.voorgaande.vragen.en.wil.je.wel.op.focussen.in.de.training.die.je.gaat.doen.')
+
+missing <-T0_df[missing]
+colnames(missing) <- c("missing", "comment")
+missing <- missing |> filter(missing == 1) |> select("comment")
+colnames(missing) <- "Welke soort skills mis je nog"
+
+missing |>
+  remove_rownames() |>
+  kable() |>
+  kable_styling(bootstrap_options = c("striped", "bordered", "condensed"), full_width = F) |>
+  #as_image()
+  save_kable(file = here("PPO", "visualizations", "missing_from_intervention.png"), zoom = 2)
+
+rm(missing, skills)
+```
+## income
+
+```{r}
+# income variable name
+income <- c("Wat.is.je.maandelijkse.omzet.")
+# participant ID
+ID <- "X."
+
+# working dataframe
+income_t0 <- T0_df %>% select(X., Wat.is.je.maandelijkse.omzet.)
+colnames(income_t0) <- c("participant_ID", "income")
+
+# response categories
+income_t0$income[income_t0$income=="Minder dan €1.000"] <- 1
+income_t0$income[income_t0$income=="€ 1.000 - € 1.500"] <- 2
+income_t0$income[income_t0$income=="€ 1.500 - € 2.000"] <- 3
+income_t0$income[income_t0$income=="€ 2.000 - € 2.500"] <- 4
+income_t0$income[income_t0$income=="€ 2.500 - € 3.000"] <- 5
+income_t0$income[income_t0$income=="€ 3.000 - € 3.500"] <- 6
+income_t0$income[income_t0$income=="€ 3.500 - € 4.000"] <- 7
+income_t0$income[income_t0$income=="€ 4.000 - € 4.500"] <- 8
+income_t0$income[income_t0$income=="€ 4.500 - € 5.000"] <- 9
+income_t0$income[income_t0$income=="Meer dan € 5.000" ] <- 10
+income_t0$income <- na_if(income_t0$income, "Gaat je niks aan")
+
+# time measure
+income_t0$time <- "T0"
+
+rm(income, ID)
+```
+
+```{r}
+# in the future this will be 'income_wide'
+income_t0$T0 <- income_t0$income
+
+missingness_table <- income_t0 %>%
+  select(T0) %>%
+  miss_var_summary(order=FALSE)
+
+colnames(missingness_table) <- c("Time", "Number Missing", "Percent Missing")
+
+missingness_table |>
+  kable() |>
+  kable_styling(bootstrap_options = c("striped", "bordered", "condensed"), full_width = F) |>
+  #as_image()
+  save_kable(file = here("PPO", "visualizations", "income_missingness.png"), zoom = 2)
+
+# upset table requires at least two variables
+#income_t0 %>%
+#  select(T0) %>%
+#  gg_miss_upset()
+
+rm(missingness_table)
+```
+
+# poverty line is 1090 / mo in 2019
+# https://longreads.cbs.nl/the-netherlands-in-numbers-2021/how-many-families-are-at-risk-of-poverty/
+
+```{r}
+income_t0$income <- income_t0$income %>% as.numeric()
+
+income_t0 %>%
+  ggplot(aes(x=time, y=income, fill = time)) +
+    ggdist::stat_halfeye(
+      show.legend = FALSE, 
+      adjust = 1,  # the breaks / bins of histogram
+      width = .5, 
+      justification = -.2,
+      .width = c(.5, .95)
+      ) +
+  scale_fill_manual(values=ciri_colors) +
+      geom_boxplot(
+      show.legend = FALSE,
+      width = .12, 
+      coef = 0, 
+      outlier.color = NA
+    ) +
+    gghalves::geom_half_point(
+      show.legend = FALSE, 
+      side="1", 
+      range_scale=.25,
+      alpha = .3
+      ) +
+     scale_y_continuous(
+       position = "right",
+       breaks = seq(1, 10, by = 1),
+       labels = c(
+       "<1000", "1000-1500", "1500-2000", 
+       "2000-2500", "2500-3000", "3000-3500", 
+       "3500-4000", "4000-4500", "4500-5000",">5000")
+     ) +
+  theme_minimal() +
+  theme(axis.title.y = element_blank(), axis.title.x = element_blank())
+```
+
+```{r}
+mean(income_t0$income ==1, na.rm=TRUE)
+
+corr_df <- merge(income_t0, df, by = "participant_ID")
+
+corr_df |> select(-time, -participant_ID, -income) |>
+  as.matrix() |> rcorr()
+
+rm(income_t0)
+#colnames(T0_df)
+```
+
+## constructs
+
+```{r}
+percentage_t0 <- T0_df %>% select(X., Welk.deel.van.je.omzet.verdien.je.met.je.creatieve.activiteiten.)
+colnames(percentage_t0) <- c("participant_ID", "percentage")
+percentage_t0$percentage %>% as.numeric(percentage_t0$percentage)
+percentage_t0$time <- "T0"
+```
+
+```{r}
+percentage_t0 %>% ggplot(aes(x=time, y=percentage, fill=time)) +
+    ggdist::stat_halfeye(
+      show.legend = FALSE, 
+      adjust = 0.10,  # the breaks / bins of histogram
+      width = .5, 
+      justification = -.2,
+      .width = c(.5, .95)
+      )  +
+  scale_fill_manual(values=ciri_colors[2]) +
+      geom_boxplot(
+      show.legend = FALSE,
+      width = .12, 
+      coef = 0, 
+      outlier.color = NA
+    ) +
+    gghalves::geom_half_point(
+      show.legend = FALSE, 
+      side="1", 
+      range_scale=.25,
+      alpha = .3
+      ) +
+  theme_minimal() +
+  theme(axis.title.y = element_blank(), axis.title.x = element_blank())
+```
+
+```{r}
+mean(percentage_t0$percentage > 75, na.rm=TRUE) 
+mean(percentage_t0$percentage > 80, na.rm=TRUE)
+mean(percentage_t0$percentage > 90, na.rm=TRUE)
+mean(percentage_t0$percentage > 95, na.rm=TRUE)
+mean(percentage_t0$percentage == 100, na.rm=TRUE)
+
+sum(percentage_t0$percentage > 75, na.rm=TRUE) 
+sum(percentage_t0$percentage > 80, na.rm=TRUE)
+sum(percentage_t0$percentage > 90, na.rm=TRUE)
+sum(percentage_t0$percentage > 95, na.rm=TRUE)
+
+```
+
