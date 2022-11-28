@@ -1,5 +1,5 @@
 ---
-title: "PPO Constructs Reliability Analysis"
+title: "IRT"
 author: "Andrew M. Demetriou"
 date: "`r format(Sys.time(), '%d %B %Y')`"
 output: 

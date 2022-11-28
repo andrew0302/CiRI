@@ -1,0 +1,116 @@
+---
+title: "Correlations"
+author: "Andrew M. Demetriou"
+date: '2022-11-28'
+output: html_document
+---
+
+```{r}
+library('here')         # file logistics
+library('tidyverse')    # code logistics
+library('ggplot2')      # visualization
+library('ggdist')       # raincloud plotting
+library('gghalves')     # raincloud plotting
+library('lavaan')       # SEM
+library('corrplot')     # visualization
+
+source((here("PPO", "PPO_constructs_fomatting_1.1.R")))
+
+knitr::opts_chunk$set(include = FALSE, echo=FALSE)
+
+#color scheme
+ciri_colors <- c('#fe7241', '#ae5944', '#543c4a', '#67444a')
+```
+
+
+```{r}
+middle_model <- 
+  ' 
+    LoC =~ LoC_0001+ LoC_0002 + LoC_0003 + LoC_0004 + LoC_0005 + LoC_0006
+    
+    Entrskills =~ Entrskills_0001 + Entrskills_0002 +Entrskills_0003 + Entrskills_0004 + Entrskills_0005 + Entrskills_0006 + Entrskills_0007
+    
+    TfA =~ TfA_0001 + TfA_0002 + TfA_0003 + TfA_0004
+    
+    TfA ~~ Entrskills
+    LoC ~~ Entrskills
+    TfA ~~ LoC
+ '
+
+middle_fit <- cfa(middle_model,data=T0_constructs_df, std.lv=TRUE, bounds =
+TRUE)
+
+scores_df <- lavPredict(middle_fit) |> as.data.frame() 
+
+cases <-inspect(middle_fit, "case.idx")
+
+T0_df <- cbind(T0_df[cases,], scores_df)
+```
+
+
+```{r}
+ID <- "X."
+
+skills <- c("Hoeveel.nadruk.denk.je.dat.er.gaat.worden.gelegd.op..Business.skills..", "Hoeveel.nadruk.denk.je.dat.er.gaat.worden.gelegd.op..Artistieke.skills...", "En.hoeveel.nadruk.denk.je.dat.er.gaat.worden.gelegd.op..Psychologische.skills..")
+
+income <- c("Wat.is.je.maandelijkse.omzet.")
+
+df <- T0_df |> select(ID, skills, income, LoC, Entrskills, TfA)
+
+colnames(df) <- c("Accountnummer", "Business", "Art", "Psychology", "income", "LoC", "Entrskills", "TfA")
+
+df$income[df$income=="Minder dan €1.000"] <- 1
+df$income[df$income=="€ 1.000 - € 1.500"] <- 2
+df$income[df$income=="€ 1.500 - € 2.000"] <- 3
+df$income[df$income=="€ 2.000 - € 2.500"] <- 4
+df$income[df$income=="€ 2.500 - € 3.000"] <- 5
+df$income[df$income=="€ 3.000 - € 3.500"] <- 6
+df$income[df$income=="€ 3.500 - € 4.000"] <- 7
+df$income[df$income=="€ 4.000 - € 4.500"] <- 8
+df$income[df$income=="€ 4.500 - € 5.000"] <- 9
+df$income[df$income=="Meer dan € 5.000" ] <- 10
+df$income <- na_if(df$income, "Gaat je niks aan")
+
+df$income <- df$income |> as.numeric()
+
+df$time <- "T0"
+```
+
+```{r}
+df |>
+  ggplot(aes(x=time, y=income, fill = time)) +
+    ggdist::stat_halfeye(
+      show.legend = FALSE, 
+      adjust = 1,  # the breaks / bins of histogram
+      width = .5, 
+      justification = -.2,
+      .width = c(.5, .95)
+      ) +
+  scale_fill_manual(values=ciri_colors) +
+      geom_boxplot(
+      show.legend = FALSE,
+      width = .12, 
+      coef = 0, 
+      outlier.color = NA
+    ) +
+    gghalves::geom_half_point(
+      show.legend = FALSE, 
+      side="1", 
+      range_scale=.25,
+      alpha = .3
+      ) +
+     scale_y_continuous(
+       position = "right",
+       breaks = seq(1, 10, by = 1),
+       labels = c(
+       "<1000", "1000-1500", "1500-2000", 
+       "2000-2500", "2500-3000", "3000-3500", 
+       "3500-4000", "4000-4500", "4500-5000",">5000")
+     ) +
+  theme_minimal() +
+  theme(axis.title.y = element_blank(), axis.title.x = element_blank())
+```
+```{r}
+df |> select(income, Business, Psychology, Art, LoC, Entrskills, TfA) |> cor(use="complete.obs") |> corrplot()
+```
+

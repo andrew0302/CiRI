@@ -1,5 +1,5 @@
 ---
-title: "PPO Constructs Reliability Analysis"
+title: "SEM"
 author: "Andrew M. Demetriou"
 date: "`r format(Sys.time(), '%d %B %Y')`"
 output: 
@@ -27,6 +27,23 @@ ciri_colors <- c('#fe7241', '#ae5944', '#543c4a', '#67444a')
 For overall model: RMSEA <= .06 and SRMSR <= .08 suggest good fit. 
 For individual items: RMSEA < .06 suggest adequate fit.
 
+```{r}
+get_model_fit <- function(model, name){
+  #RMSE, accordig to Smith & McMillan 2001
+  indices <- c("rmsea.ci.upper", "rmsea.ci.lower", "rmsea", "rmsea.pvalue")
+  names <- c("upper", "lower", "rmsea", "pvalue")
+  
+  #draw complete set of fit indices
+  fit_indices <- fitmeasures(model)
+  #RMSEA subset as named vector
+  fit_subset <- fit_indices[indices]
+  #add model name for reference
+  fit_subset$model <- name
+  #named vector to row in dataframe
+  #fit_subset <- fit_subset %>% t() %>% as.data.frame() 
+  return(as.data.frame(fit_subset))
+}
+```
 
 ```{r}
 big_model <- 
@@ -46,29 +63,8 @@ big_model <-
     LoC ~~ NFA
     TfA ~~ LoC
  '
-```
-
-```{r}
 big_fit <- cfa(big_model,data=T0_constructs_df, std.lv=TRUE, bounds =
 TRUE)
-```
-
-```{r}
-get_model_fit <- function(model, name){
-  #RMSE, accordig to Smith & McMillan 2001
-  indices <- c("rmsea.ci.upper", "rmsea.ci.lower", "rmsea", "rmsea.pvalue")
-  names <- c("upper", "lower", "rmsea", "pvalue")
-  
-  #draw complete set of fit indices
-  fit_indices <- fitmeasures(model)
-  #RMSEA subset as named vector
-  fit_subset <- fit_indices[indices]
-  #add model name for reference
-  fit_subset$model <- name
-  #named vector to row in dataframe
-  #fit_subset <- fit_subset %>% t() %>% as.data.frame() 
-  return(as.data.frame(fit_subset))
-}
 ```
 
 ```{r}
@@ -118,7 +114,6 @@ semPaths(small_fit, "est", layout = "spring", node.label.cex=1.5, edge.label.cex
 ```{r}
 middle_model <- 
   ' 
-    
     LoC =~ LoC_0001+ LoC_0002 + LoC_0003 + LoC_0004 + LoC_0005 + LoC_0006
     
     Entrskills =~ Entrskills_0001 + Entrskills_0002 +Entrskills_0003 + Entrskills_0004 + Entrskills_0005 + Entrskills_0006 + Entrskills_0007
@@ -136,6 +131,11 @@ TRUE)
 model_fit <- get_model_fit(middle_fit, "middle_fit")
 print_rmsea(model_fit)
 ```
+
+```{r}
+semPaths(middle_fit, "est", layout = "spring", node.label.cex=1.5, edge.label.cex = 1, edge.color = "black", style = "lisrel")
+```
+
 
 ```{r}
 #scores_df <- lavPredict(big_fit) |> as.data.frame() |> pivot_longer(cols = c("LoC", "Entrskills", "TfA", "NFA"), names_to = "construct")
@@ -170,5 +170,10 @@ scores_df |>
   theme(axis.title.y = element_blank(), axis.title.x = element_blank()) 
 ```
 
+```{r}
+cases <-inspect(middle_fit, "case.idx")
+
+cbind(T0_constructs_df[cases,], scores_df)
+```
 
 

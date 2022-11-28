@@ -178,6 +178,7 @@ T0_constructs_df <- temp_df %>% select(Accountnummer, everything())
 #reverse scoring
 T0_constructs_df$TfA_0003 <- T0_constructs_df$TfA_0003 * -1
 T0_constructs_df$TfA_0004 <- T0_constructs_df$TfA_0004 * -1
+
 T0_constructs_df$LoC_0004 <- T0_constructs_df$LoC_0004 * -1
 T0_constructs_df$LoC_0005 <- T0_constructs_df$LoC_0005 * -1
 T0_constructs_df$LoC_0006 <- T0_constructs_df$LoC_0006 * -1
