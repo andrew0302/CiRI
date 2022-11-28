@@ -111,6 +111,9 @@ df |>
   theme(axis.title.y = element_blank(), axis.title.x = element_blank())
 ```
 ```{r}
-df |> select(income, Business, Psychology, Art, LoC, Entrskills, TfA) |> cor(use="complete.obs") |> corrplot()
+df |> select(income, Business, Psychology, Art, LoC, Entrskills, TfA) |> cor(use="complete.obs") |> 
+  corrplot(
+  method = "color", addCoef.col = 'black'
+)
 ```
 
