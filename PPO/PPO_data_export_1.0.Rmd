@@ -56,19 +56,57 @@ write_csv(export_df, file = path)
 path <- here("PPO", "intermediary_data", "PPO_T0.xlsx")
 write.xlsx(export_df, file = path)
 
-rm(export_df, id_vars)
+rm(export_df)
 ```
 
 ```{r}
 #make list of dataframes for all subfolders
 data_folder = "data_/PPO_raw"
 
+files <- list.files(here(data_folder))
+
 list_of_data_frames <- lapply(files, function(x){
   read.xlsx(here(data_folder, x), sheetIndex=1)[1:3]
 })
 
+# add column of dataset names
 names(list_of_data_frames) <- files
+#bind dataframes together
+ppo_names_df <- bind_rows(list_of_data_frames, .id = ".id")
 
-names_df <- bind_rows(list_of_data_frames, .id = ".id")
+
+ppo_names_df$Achternaam <- tolower(ppo_names_df$Achternaam)
+ppo_names_df$Voornaam <- tolower(ppo_names_df$Voornaam)
+```
+
+```{r}
+id_vars <- c(".id", "X.", "Even.voorstellen..Wat.is.jouw.voornaam.", "En.dan.natuurlijk..wat.is.jouw.achternaam.")
+ciri_names_df <- T0_df[id_vars]
+colnames(ciri_names_df) <- c(".id", "X.", "Voornaam", "Achternaam")
+
+ciri_names_df$Achternaam <- tolower(ciri_names_df$Achternaam)
+ciri_names_df$Voornaam <- tolower(ciri_names_df$Voornaam)
+
+n_occur <- data.frame(table(ciri_names_df$X.)) |> arrange(desc(Freq))
+
+path <- here("PPO", "intermediary_data", "ciri_names.xlsx")
+write.xlsx(ciri_names_df, file = path)
+```
+
+```{r}
+merged_names_df <- merge(ciri_names_df, ppo_names_df, by.x = c("Achternaam", "Voornaam"), by.y=c("Achternaam","Voornaam"), all.x = TRUE)
+path <- here("PPO", "intermediary_data", "matched_names.xlsx")
+write.xlsx(merged_names_df, file = path)
+
+missing_names_df <- merged_names_df |> filter(! complete.cases(Nr.))
+path <- here("PPO", "intermediary_data", "missing_names.xlsx")
+write.xlsx(missing_names_df, file = path)
+
+doubles <- data.frame(table(merged_names_df$X.)) |> filter(Freq > 1) 
+colnames(doubles) <- c("X.", "Freq")
+doubles_df <- merge(doubles, merged_names_df, by = "X.")
+path <- here("PPO", "intermediary_data", "doubles.xlsx")
+write.xlsx(doubles_df, file = path)
+
 ```
 
