@@ -1,0 +1,74 @@
+---
+title: "descriptives and income"
+author: "Andrew M. Demetriou"
+date: "6/17/2022"
+output: html_document
+---
+
+```{r why_setup, include=FALSE}
+library('here')      # file logistics
+library('tidyverse') # code logistics
+library('xlsx')      # excel export
+
+#report options
+knitr::opts_chunk$set(include = FALSE, echo=FALSE)
+options(scipen=999)
+
+#color scheme
+ciri_colors <- c('#fe7241', '#ae5944', '#543c4a', '#67444a')
+```
+
+```{r import_data}
+#define data folder
+data_folder <- here("data_")
+
+#names of subfolders
+sub_folders <- c("WerktuigPPO |  FebMar", "WerktuigPPO |  May", "WerktuigPPO |  June")
+
+#make list of dataframes for all subfolders
+list_of_data_frames <- lapply(sub_folders, function(x){
+  read.csv(here(data_folder, x, 'responses.csv'))
+})
+
+#name subfolders
+names(list_of_data_frames) <- sub_folders
+
+#bind into a single dataframe
+T0_df <- bind_rows(list_of_data_frames, .id = ".id")
+
+#questions <- colnames(T0_df) %>% as.data.frame()
+
+rm(data_folder, sub_folders, list_of_data_frames)
+```
+
+```{r}
+#remove identifiers
+id_vars <- c("Even.voorstellen..Wat.is.jouw.voornaam.", "En.dan.natuurlijk..wat.is.jouw.achternaam.", "Wat.is.jouw.KvK.nummer.")
+
+export_df <- T0_df |> select(-id_vars)
+
+#dataset export for PAACT
+#csv
+path <- here("PPO", "intermediary_data", "PPO_T0.csv")
+write_csv(export_df, file = path)
+
+#xlsx
+path <- here("PPO", "intermediary_data", "PPO_T0.xlsx")
+write.xlsx(export_df, file = path)
+
+rm(export_df, id_vars)
+```
+
+```{r}
+#make list of dataframes for all subfolders
+data_folder = "data_/PPO_raw"
+
+list_of_data_frames <- lapply(files, function(x){
+  read.xlsx(here(data_folder, x), sheetIndex=1)[1:3]
+})
+
+names(list_of_data_frames) <- files
+
+names_df <- bind_rows(list_of_data_frames, .id = ".id")
+```
+

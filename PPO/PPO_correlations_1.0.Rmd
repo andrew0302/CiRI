@@ -13,6 +13,7 @@ library('ggdist')       # raincloud plotting
 library('gghalves')     # raincloud plotting
 library('lavaan')       # SEM
 library('corrplot')     # visualization
+library('psych')        # correlation p values
 
 source((here("PPO", "PPO_constructs_fomatting_1.1.R")))
 
@@ -111,9 +112,28 @@ df |>
   theme(axis.title.y = element_blank(), axis.title.x = element_blank())
 ```
 ```{r}
-df |> select(income, Business, Psychology, Art, LoC, Entrskills, TfA) |> cor(use="complete.obs") |> 
+cor_df <- df |> select(income, Business, Psychology, Art, LoC, Entrskills, TfA)
+
+cor_test_mat <- corr.test(cor_df)$p
+
+cor_df |> cor(use="complete.obs") |> 
   corrplot(
-  method = "color", addCoef.col = 'black'
+    method = "color", 
+    addCoef.col = 'black', 
+    p.mat = cor_test_mat, insig = "pch"
 )
+
+#df |> select(income, Business, Psychology, Art, LoC, Entrskills, TfA) |> cor(use="complete.obs") |> 
+#  corrplot(
+#  method = "color", addCoef.col = 'black'
+#)
+```
+```{r}
+
+
+
+cor_mat <- cor_df |> cor(use="complete.obs")
+
+#ggcorrplot(cor_mat, p.mat = cor_test_mat)
 ```
 

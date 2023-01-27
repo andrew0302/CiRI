@@ -18,6 +18,7 @@ library('ggplot2')      # general visualization
 library('cowplot')      # multiple plots
 
 library('psych')        # reliability analysis
+library('psychTools')   # reliability analysis
 
 # custom script to format dataframes
 source((here("PPO", "PPO_constructs_fomatting_1.1.R")))
@@ -73,6 +74,11 @@ diagram_fa <- function(df, vars, factors=1){
 ```{r}
 #LoC_0001:"Als.ik.plannen.maak.weet.ik.zeker.dat.ze.werken" 
 diagram_fa(T0_constructs_df, LoC_vars, factors = 2)
+
+
+# factor correlations are low (r=.24)
+T0_constructs_df[LoC_vars]|>
+  psych::fa(nfactors=2)
 
 LoC_vars <- LoC_vars[! LoC_vars %in% "LoC_0001"] 
 ```
