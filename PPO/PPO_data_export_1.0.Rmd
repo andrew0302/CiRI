@@ -9,13 +9,6 @@ output: html_document
 library('here')      # file logistics
 library('tidyverse') # code logistics
 library('xlsx')      # excel export
-
-#report options
-knitr::opts_chunk$set(include = FALSE, echo=FALSE)
-options(scipen=999)
-
-#color scheme
-ciri_colors <- c('#fe7241', '#ae5944', '#543c4a', '#67444a')
 ```
 
 ```{r import_data}
@@ -49,14 +42,14 @@ export_df <- T0_df |> select(-id_vars)
 
 #dataset export for PAACT
 #csv
-path <- here("PPO", "intermediary_data", "PPO_T0.csv")
-write_csv(export_df, file = path)
+#path <- here("PPO", "intermediary_data", "PPO_T0.csv")
+#write_csv(export_df, file = path)
 
 #xlsx
-path <- here("PPO", "intermediary_data", "PPO_T0.xlsx")
-write.xlsx(export_df, file = path)
+#path <- here("PPO", "intermediary_data", "PPO_T0.xlsx")
+#write.xlsx(export_df, file = path)
 
-rm(export_df)
+#rm(export_df)
 ```
 
 ```{r}
@@ -77,36 +70,87 @@ ppo_names_df <- bind_rows(list_of_data_frames, .id = ".id")
 
 ppo_names_df$Achternaam <- tolower(ppo_names_df$Achternaam)
 ppo_names_df$Voornaam <- tolower(ppo_names_df$Voornaam)
+
+rm(list_of_data_frames, files, data_folder)
 ```
 
 ```{r}
+# identifying info
 id_vars <- c(".id", "X.", "Even.voorstellen..Wat.is.jouw.voornaam.", "En.dan.natuurlijk..wat.is.jouw.achternaam.")
+
+# total names in ciri data
 ciri_names_df <- T0_df[id_vars]
 colnames(ciri_names_df) <- c(".id", "X.", "Voornaam", "Achternaam")
 
 ciri_names_df$Achternaam <- tolower(ciri_names_df$Achternaam)
 ciri_names_df$Voornaam <- tolower(ciri_names_df$Voornaam)
 
-n_occur <- data.frame(table(ciri_names_df$X.)) |> arrange(desc(Freq))
+ciri_names_df <- ciri_names_df |> select(-X.)
 
-path <- here("PPO", "intermediary_data", "ciri_names.xlsx")
-write.xlsx(ciri_names_df, file = path)
+#n_occur <- data.frame(table(ciri_names_df$X.)) |> arrange(desc(Freq))
+#path <- here("PPO", "intermediary_data", "ciri_names.xlsx")
+#write.xlsx(ciri_names_df, file = path)
 ```
 
 ```{r}
-merged_names_df <- merge(ciri_names_df, ppo_names_df, by.x = c("Achternaam", "Voornaam"), by.y=c("Achternaam","Voornaam"), all.x = TRUE)
-path <- here("PPO", "intermediary_data", "matched_names.xlsx")
-write.xlsx(merged_names_df, file = path)
+# remove incomplete rows
+ciri_names_df$Voornaam[ciri_names_df$Voornaam==""] <- NA
+ciri_names_df$Achternaam[ciri_names_df$Achternaam==""] <- NA
 
-missing_names_df <- merged_names_df |> filter(! complete.cases(Nr.))
-path <- here("PPO", "intermediary_data", "missing_names.xlsx")
-write.xlsx(missing_names_df, file = path)
-
-doubles <- data.frame(table(merged_names_df$X.)) |> filter(Freq > 1) 
-colnames(doubles) <- c("X.", "Freq")
-doubles_df <- merge(doubles, merged_names_df, by = "X.")
-path <- here("PPO", "intermediary_data", "doubles.xlsx")
-write.xlsx(doubles_df, file = path)
-
+ciri_names_df <-ciri_names_df |> filter(complete.cases(Achternaam)) |>
+  filter(! Voornaam == "k")
 ```
 
+
+```{r}
+# merged on all names: note, there are duplicates in the PPO records
+merged_names_df <- merge(ciri_names_df, ppo_names_df, by.x = c("Achternaam", "Voornaam"), by.y=c("Achternaam","Voornaam"), all.x = TRUE) 
+
+# 6 duplicates
+doubles_df <- data.frame(table(merged_names_df$Achternaam, merged_names_df$Voornaam)) |> arrange(desc(Freq)) |> filter(Freq > 1)
+```
+
+```{r}
+matched_names_df <- merged_names_df |>
+  filter(complete.cases(Nr.))
+```
+
+```{r}
+missing_names_df <- merged_names_df |> 
+  filter(! complete.cases(Nr.)) 
+
+missing_names_df$Voornaam[missing_names_df$Voornaam==""] <- NA
+missing_names_df$Achternaam[missing_names_df$Achternaam==""] <- NA
+
+missing_names_df <- missing_names_df |>
+  filter(complete.cases(Achternaam, Voornaam))
+```
+
+```{r}
+# double entry in merged names df
+
+#doubles <- data.frame(table(merged_names_df$X.)) |> filter(Freq > 1) 
+#colnames(doubles) <- c("X.", "Freq")
+#doubles_df <- merge(doubles, merged_names_df, by = "X.")
+#path <- here("PPO", "intermediary_data", "doubles.xlsx")
+#write.xlsx(doubles_df, file = path)
+```
+
+
+```{r}
+achternaam_matched_names_df <-merge(missing_names_df, ppo_names_df, by = "Achternaam", all.x = T) |>
+  select(Voornaam.x, Voornaam.y, Achternaam, .id.x, Nr..y)
+
+colnames(achternaam_matched_names_df) <- c("Voornaam.ciri", "Voornaam.PPO", "Achternaam.ciri", ".id.x", "Nr.")
+
+# manually adding:
+# Dataset maart 2022 tbv CIRI.xlsx 23929 nunes van den hoven anna
+achternaam_matched_names_df[achternaam_matched_names_df$Voornaam.ciri=="anna", "Nr."] <- 23929
+
+# manually adding:
+# Dataset april 2022 tbv CIRI.xlsx 24191 de groot tamara
+achternaam_matched_names_df[achternaam_matched_names_df$Voornaam.ciri=="tamara", "Nr."] <- 24191
+
+#path <- here("PPO", "intermediary_data", "missing_names.xlsx")
+#write.xlsx(missing_names_df, file = path)
+```
