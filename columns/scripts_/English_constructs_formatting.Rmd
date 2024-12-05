@@ -1,0 +1,109 @@
+---
+title: "English constructs formatting"
+author: "Andrew M. Demetriou"
+---
+
+```{r setup, include=FALSE}
+library('here')
+library('dplyr')
+library('knitr')
+```
+
+```{r}
+data_folder <- here("data_")
+files <- c("CWM T0 - BEE EZ 2024 -  Export 20241121 - R=26.csv", 
+           "CWM T0 - BWA 2024 RDAM NL - Export 20241121 - R=18.csv", 
+           "CWM T0 - HOK RLC 2024 - Export 20241121 - R=17.csv")
+```
+
+```{r}
+T0_dfs <- lapply(files, function(file){
+  df <- read.csv(here(data_folder, file))
+})
+  
+names <- list("BEE EZ 2024 - R=26", 
+           "BWA 2024 RDAM NL - R=18", 
+           "HOK RLC 2024 - R= 17")
+
+names(T0_dfs ) <- names
+
+questions <- lapply(T0_dfs, function(df){
+  df <- colnames(df) %>% as.data.frame()
+})
+```
+
+```{r}
+# Entrepreneurial Intentions:
+intentions_colnames <- c(paste0("Intention_000", seq(1,9)))
+intentions_vars <- colnames(T0_dfs[[1]])[17:25]
+```
+
+```{r}
+# Entrepreneurial Skills:
+entrskills_colnames <- c(paste0("Entrskills_000", seq(1,7)))
+entrskills_vars <- colnames(T0_dfs[[1]])[26:32]
+```
+
+```{r}
+# Personal Skills:
+persskills_colnames <- c(paste0(paste0("Perskills_000", seq(01,09)), paste0("Perskills_00", seq(10,17))))
+perskills_vars <- colnames(T0_dfs[[1]])[33:49]
+```
+
+```{r}
+# Need for Achievement:
+NFA_colnames <- c(paste0("NfA_000", seq(1, 4)))
+NFA_vars <- colnames(T0_dfs[[1]])[50:53]
+```
+
+```{r}
+# Locus of Control: 
+LoC_colnames <- c(paste0("LoC_000", seq(1, 6)))
+LoC_vars <- colnames(T0_dfs[[1]])[54:59]
+```
+
+```{r}
+TfA_colnames <- c('TfA_000', seq(1, 4))
+TfA_vars <- colnames(T0_dfs[[1]])[60:63]
+```
+
+```{r}
+# BEE Reasons for joining:
+BEE_reasons_colnames <- "Reasons_0001"
+BEE_reasons_vars <- colnames(T0_dfs[[1]])[14]
+BEE_demog_vars <- colnames(T0_dfs[[1]])[1:13]
+BEE_exit_vars <- colnames(T0_dfs[[1]])[122:129]
+BEE_income_colnames <- c("Income_000", seq(1, 2))
+BEE_income_vars <- colnames(T0_dfs[[1]])[15:16]
+```
+
+
+```{r}
+BEE_questions <- T0_dfs[[1]] %>% select(
+                       -BEE_demog_vars, -BEE_exit_vars, 
+                       -BEE_reasons_vars, -BEE_income_vars, 
+                       -intentions_vars, -income_vars, -intentions_vars, 
+                       -entrskills_vars, -perskills_vars, -NFA_vars, 
+                       -LoC_vars, -TfA_vars) %>% colnames() %>% 
+                        as.data.frame()
+
+write.csv(BEE_questions, here("columns", "extra_columns", "BEE_columns.csv"))
+```
+
+```{r}
+BWA_demog_vars <- colnames(T0_dfs[[2]])[1:13]
+BWA_resons_vars <- colnames(T0_dfs[[2]])[14:30]
+BWA_income_vars <- colnames(T0_dfs[[2]][31:33])
+BWA_exit_vars <- colnames(T0_dfs[[2]])[129:135]
+```
+
+```{r}
+T0_dfs[[2]] %>% select(#-intentions_vars, 
+                       -BEE_income_vars, 
+                       -entrskills_vars, 
+                       #-perskills_vars, 
+                       -NFA_vars, 
+                       -LoC_vars, -TfA_vars
+                       ) %>% colnames() %>% as.data.frame()
+```
+

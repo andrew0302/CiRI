@@ -15,7 +15,7 @@ library('lavaan')       # SEM
 library('corrplot')     # visualization
 library('psych')        # correlation p values
 
-source((here("PPO", "PPO_constructs_fomatting_1.1.R")))
+source((here("PPO", "PPO_constructs_formatting.R")))
 
 knitr::opts_chunk$set(include = FALSE, echo=FALSE)
 

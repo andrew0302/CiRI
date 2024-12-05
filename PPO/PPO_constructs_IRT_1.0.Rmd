@@ -18,7 +18,7 @@ library('cowplot')      # multiple plots
 library('mirt')         # irt analysis
 
 # custom script to format dataframes
-source((here("PPO", "PPO_constructs_fomatting_1.1.R")))
+source((here("PPO", "PPO_constructs_formatting.R")))
 
 knitr::opts_chunk$set(include = FALSE, echo=FALSE)
 

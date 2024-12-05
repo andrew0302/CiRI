@@ -32,10 +32,20 @@ library('naniar')             # missingness analysis
 #report options
 knitr::opts_chunk$set(include = FALSE, echo=FALSE)
 options(scipen=999)
-source((here("PPO", "PPO_constructs_formatting.R")))
 
 #color scheme
 ciri_colors <- c('#fe7241', '#ae5944', '#543c4a', '#67444a')
+```
+
+```{r import_data}
+#define data folder
+data_folder <- here("Creative_Wellness", "data")
+
+df <- read.csv(here(data_folder, "responses (23).csv"))
+
+#questions <- colnames(T0_df) %>% as.data.frame()
+
+rm(data_folder, sub_folders, list_of_data_frames)
 ```
 
 # Who are our participants?

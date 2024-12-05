@@ -1,0 +1,51 @@
+---
+title: "columns"
+---
+
+```{r}
+library("here")
+library("tidyverse")
+```
+
+```{r}
+#list.files(here("data_"))
+
+files <- c(
+  "CWM T0 - BEE EZ 2024 -  Export 20241121 - R=26.csv",
+  "CWM T0 - BWA 2024 RDAM NL - Export 20241121 - R=18.csv",
+  "CWM T0 - HOK RLC 2024 - Export 20241121 - R=17.csv",
+  "CWM T0 - PPO 2022 - Export 20241121 - R=60.csv")
+
+file_list <- lapply(files, function(x){
+  read_csv(here("data_", x))
+})
+
+names(file_list) <- files
+```
+
+```{r}
+t <- colnames(file_list[[1]])
+t <- t %>% as.data.frame()
+colnames(t) <- names(file_list[1])
+
+write.csv(t, file = here("columns", "BEE EZ 2024.csv"))
+
+t <- colnames(file_list[[2]])
+t <- t %>% as.data.frame()
+colnames(t) <- names(file_list[2])
+
+write.csv(t, file = here("columns", "BWA 2024.csv"))
+
+t <- colnames(file_list[[3]])
+t <- t %>% as.data.frame()
+colnames(t) <- names(file_list[3])
+
+write.csv(t, file = here("columns", "HOK 2024.csv"))
+
+t <- colnames(file_list[[4]])
+t <- t %>% as.data.frame()
+colnames(t) <- names(file_list[4])
+
+write.csv(t, file = here("columns", "PPO.csv"))
+```
+

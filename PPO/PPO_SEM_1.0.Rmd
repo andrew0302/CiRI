@@ -18,7 +18,7 @@ library('semPlot')      # visualizing model
 library('corrplot')     # visualizing correlations
 library('ggplot2')      # visualizing distributions
 
-source((here("PPO", "PPO_constructs_fomatting_1.1.R")))
+source((here("PPO", "PPO_constructs_formatting.R")))
 
 #color scheme
 ciri_colors <- c('#fe7241', '#ae5944', '#543c4a', '#67444a')
