@@ -1,0 +1,397 @@
+---
+title: "demogs & descriptives"
+---
+
+```{r}
+library('here')               # file logistics
+library('wordcloud')          # word cloud plotting
+library('RColorBrewer')       # custom color pallette
+library('tidytext')           # text mining
+library('ggdist')             # raincloud plotting
+library('gghalves')           # raincloud plotting
+library('kableExtra')         # table visualization
+library('naniar')             # missingness analysis
+library('forcats')            # reorder bars in bar chart
+library('scales')
+library('tidyverse')          # code logistics
+
+#color scheme
+ciri_colors <- c('#fe7241', '#ae5944', '#543c4a', '#67444a', 'black')
+
+subset_dfs <- readRDS(here("data_", "formatted_data", "subset_dfs.RDS"))
+
+images_path <- here("current_project", "images_")
+```
+
+```{r}
+# rename id variable
+subset_dfs$`BEEEZ2024-R=26`$demogs <- subset_dfs$`BEEEZ2024-R=26`$demogs %>% rename(
+  Just.for.verification..what.s.your.name. = Just.for.verification..what.s.your.first.name.
+)
+```
+
+
+```{r}
+# convert string responses to numbers
+format_construct_dfs <- function(subset_df){
+
+  lapply(
+      # construct variables
+      subset_df[c('entr. intentions', 'entr.skills', 
+                  'personal skills', 'need for achievement', 
+                  'locus of control', 'tolerance for ambiguity')], 
+      function(T0_df){
+    
+      # merge with ID
+      T0_df$id <- subset_df$demogs$Just.for.verification..what.s.your.name.
+      
+      # recode all vars
+      T0_df <- T0_df %>% 
+        pivot_longer(cols = !id, names_to = 'question', values_to = 'response') %>%
+        mutate(response = case_when(
+          response == "Totally agree" ~ 5,
+          response == "Totally Agree" ~ 5,
+          response == "Agree" ~ 4, 
+          response == "Neutral" ~ 3, 
+          response == "Disagree" ~ 2, 
+          response == "Totally disagree" ~ 1,
+          response == "Totally Disagree" ~ 1,
+          response == "Totally disasgree" ~ 1
+        ))
+      })
+}
+
+#subset_df <- subset_dfs[[1]]
+#construct_dfs <- format_construct_dfs(subset_df)
+#construct_dfs <- format_construct_dfs(subset_dfs[[3]])
+
+construct_dfs <- lapply(subset_dfs, format_construct_dfs)
+
+rm(format_construct_dfs)
+```
+
+
+```{r}
+# reverse score specific items
+loc_question_list <- c(
+  "Having.a.successful..creative..business.is.mostly.the.result.of.being.at.the.right.place.at.the.right.time.", "Most.bad.circumstances.in.life.are.caused.by.bad.luck.",
+  "Sometimes.I.feel.like.I.don.t.have.enough.control.over.my.life."
+  )
+  
+for(i in 1:length(construct_dfs)){
+  construct_dfs[[i]][[5]] <- construct_dfs[[i]][[5]] %>%
+    mutate(response = case_when(
+      question %in% loc_question_list ~ 6 - as.numeric(response), 
+      .default = response
+    ))
+}
+
+toa_question_list <- c(
+  "Doing.the.same.thing.in.the.same.space.leads.to.a.happy.life.", 
+  "If.you.really.want.to.enjoy.your.vacation..you.should.plan.it.down.to.the.details."
+  )
+
+for(i in 1:length(construct_dfs)){
+  construct_dfs[[i]][[6]] <- construct_dfs[[i]][[6]] %>%
+    mutate(response = case_when(
+      question %in% loc_question_list ~ 6 - as.numeric(response), 
+      .default = response
+    ))
+}
+
+rm(toa_question_list, loc_question_list, i)
+```
+
+
+```{r}
+# get mean of construct scores
+summarize_construct_df <- function(construct_dfs){
+  
+  construct_summary_dfs <- lapply(construct_dfs, function(construct_df){
+    construct_df %>% 
+      group_by(id) %>%
+      summarize(mean = mean(as.numeric(response), na.rm=T))
+  })
+  
+  return(construct_summary_dfs)
+}
+
+construct_summary_dfs <- lapply(construct_dfs, summarize_construct_df)
+
+rm(summarize_construct_df)
+```
+
+
+```{r}
+# rename mean column to be the name of construct
+for(j in 1:length(construct_summary_dfs)){
+  for(i in 1:length(construct_summary_dfs[[j]])){
+    name <- names(construct_summary_dfs[[j]][i])
+    colnames(construct_summary_dfs[[j]][[i]]) <- c("id", name)
+  }
+}
+
+rm(i, j, name)
+```
+
+```{r}
+construct_summary_dfs <- lapply(construct_summary_dfs, function(construct_summary_df_list){
+  reduce(construct_summary_df_list, full_join, by = "id")
+})
+```
+
+```{r}
+plot_construct_summary <- function(construct_summary_df){
+  
+  construct_summary_df %>%
+    pivot_longer(cols = !id, names_to = "construct", values_to = "response") %>%
+      ggplot(aes(x=construct, y=response, fill = construct)) +
+        scale_fill_viridis_d(option = "inferno") +
+        ggdist::stat_halfeye(
+          show.legend = FALSE, 
+          adjust = 1,  # the breaks / bins of histogram
+          width = .5, 
+          justification = -.2,
+          .width = c(.5, .95)
+          ) +
+            geom_boxplot(
+          show.legend = FALSE,
+          width = .12, 
+          coef = 0, 
+          outlier.color = NA
+        ) +
+          gghalves::geom_half_point(
+          show.legend = FALSE, 
+          side= "1", 
+          size = 4, 
+          range_scale=.25,
+          alpha = .3
+          ) +
+        scale_y_continuous(
+           position = "left",
+           breaks = seq(1, 5, by = 1), limits = c(1, 5)
+         ) +
+      theme(panel.background = element_rect(fill = "white")) +
+      theme(axis.title.y = element_blank(), axis.title.x = element_blank())
+} 
+
+construct_summary_plots <- lapply(construct_summary_dfs, plot_construct_summary)
+construct_summary_plots
+
+ggsave(here(images_path, "BEEEZ2024_construct_summary.png"), construct_summary_plots[[1]])
+ggsave(here(images_path, "BWA2024_construct_summary.png"),   construct_summary_plots[[2]])
+ggsave(here(images_path, "HOKRLC2024_construct_summary.png"),construct_summary_plots[[3]])
+
+#rm(construct_summary_plots, plot_construct_summary)
+```
+
+```{r}
+income_dfs <- lapply(subset_dfs, function(subset_df){
+
+  # subset income df
+  T0_df <- subset_df$income
+  # merge with ID
+  T0_df$id <- subset_df$demogs$Just.for.verification..what.s.your.name.
+  # create time variable
+  T0_df$time <- "T0"
+  
+  # rename columns
+  T0_df <- T0_df %>%
+    rename(
+      income = What.s.your.current.monthly.income, 
+      income_percentage = Roughly..which.percentage.of.your.income.flows.from.business.or.projects.that.you.own.)
+  
+  # make explicit NAs
+  T0_df[T0_df == "None of your business"] <- NA
+  T0_df[T0_df == "Still none of your business"] <- NA
+  
+  # recode income variable
+  T0_df <- T0_df %>%
+    mutate(income = case_when(
+      income == "Less than €1.000"    ~ 1, 
+      income == "€ 1.000 - € 2.500"   ~ 2,
+      income == "€ 2.500 - € 5.000"   ~ 3, 
+      income == "€ 5.000 - € 7.500"   ~ 4, 
+      income == "€ 7.500 - € 10.000"  ~ 5, 
+      income == "€ 10.000 - € 12.500" ~ 6, 
+      income == "€ 12.500 - € 15.000" ~ 7, 
+      income == "€ 15.000 - € 17.500" ~ 8
+    ))
+  
+    T0_df <- T0_df %>%
+    mutate(income_percentage = case_when(
+      income_percentage == "Less than 10%" ~ 1, 
+      income_percentage == "10% - 20%"     ~ 2,
+      income_percentage == "20% - 30%"     ~ 3, 
+      income_percentage == "30% - 40%"     ~ 4, 
+      income_percentage == "40% - 50%"     ~ 5, 
+      income_percentage == "50% - 60%"     ~ 6, 
+      income_percentage == "60% - 70%"     ~ 7, 
+      income_percentage == "70% - 80%"     ~ 8, 
+      income_percentage == "80% - 90%"     ~ 9, 
+      income_percentage == "90% - 100%"   ~ 10
+    ))
+  
+  return(T0_df)
+})
+```
+
+```{r}
+construct_summary_dfs[[1]] <- merge(construct_summary_dfs[[1]], income_dfs[[1]], by = "id")
+construct_summary_dfs[[2]] <- merge(construct_summary_dfs[[2]], income_dfs[[2]]%>%select(-Which.of.your.activities.provides.you.with.the.bigger.part.of.your.monthly.income), by = "id")
+construct_summary_dfs[[3]] <- merge(construct_summary_dfs[[3]], income_dfs[[3]], by = "id")
+
+rm(income_dfs)
+```
+
+```{r}
+construct_income_plots <- lapply(construct_summary_dfs, function(construct_summary_df){
+  
+  construct_summary_df %>%
+    pivot_longer(cols = -c("id", "income", "income_percentage", "time"), 
+                 names_to = "construct", values_to = "score") %>%
+      mutate(construct = case_when(
+    construct == "need for achievement" ~ "achieve need", 
+    construct == "tolerance for ambiguity" ~ "ambig. tolerance", 
+    construct == "locus of control" ~ "control locus", 
+    .default = construct
+  )) %>%
+    ggplot(aes(x=as.numeric(income), y=as.numeric(score), color = construct, alpha = .3)) +
+    facet_grid(~construct) +
+    geom_point(position = "jitter") +
+    coord_flip() +
+    scale_x_continuous(
+      position = "top",
+      breaks = seq(1, 8, by = 1),
+      labels = c(
+           "<1000€", "1000€-2500€", "2500€-5000€", 
+           "5000€-7500€", "7500€-10000€", "10000€-12500€", 
+           "12500€-15000€", "15000€-17500€")) +
+    scale_y_continuous(limits = c(1, 5)) +
+    theme_light() +
+    theme(axis.title.y = element_blank(), 
+          axis.title.x = element_blank(), 
+          legend.position="none")
+})
+
+construct_income_plots
+
+ggsave(here(images_path, "BEEEZ2024_construct_income.png"), construct_income_plots[[1]])
+ggsave(here(images_path, "BWA2024_construct_income.png"),   construct_income_plots[[2]])
+ggsave(here(images_path, "HOKRLC2024_construct_income.png"),construct_income_plots[[3]])
+```
+
+```{r}
+construct_income_plots <- lapply(construct_summary_dfs, function(construct_summary_df){
+  
+  construct_summary_df %>%
+    pivot_longer(cols = -c("id", "income", "income_percentage", "time"), 
+                 names_to = "construct", values_to = "score") %>%
+      mutate(construct = case_when(
+    construct == "need for achievement" ~ "achieve need", 
+    construct == "tolerance for ambiguity" ~ "ambig. tolerance", 
+    construct == "locus of control" ~ "control locus", 
+    .default = construct
+  )) %>%
+    ggplot(aes(x=as.numeric(income_percentage), y=as.numeric(score), color = construct, alpha = .3)) +
+    facet_grid(~construct) +
+    geom_point(position = "jitter") +
+    coord_flip() +
+    scale_x_continuous(
+      position = "top",
+      breaks = seq(1, 10, by = 1),
+      labels = c(
+         "<10%", "10% - 20%", "20% - 30%", 
+         "30% - 40%", "40% - 50%", "50% - 60%", 
+         "60% - 70%", "70% - 80%", "80% - 90%", 
+         "90% - 100%")) +
+    scale_y_continuous(limits = c(1, 5)) +
+    theme_light() +
+    theme(axis.title.y = element_blank(), 
+          axis.title.x = element_blank(), 
+          legend.position="none")
+})
+
+construct_income_plots
+
+ggsave(here(images_path, "BEEEZ2024_construct_income_percentage.png"), construct_income_plots[[1]])
+ggsave(here(images_path, "BWA2024_construct_income_percentage.png"),   construct_income_plots[[2]])
+ggsave(here(images_path, "HOKRLC2024_construct_income_percentage.png"),construct_income_plots[[3]])
+```
+
+
+
+```{r}
+construct_dfs[[1]]$`entr. intentions` <- construct_dfs[[1]]$`entr. intentions` %>%
+  mutate(question = case_when(
+    question == "In.the.coming.12.months.I.want.to.conduct.practical.experiments.to.find.solutions.for.clients.and.employers" ~ "practical experiments", 
+    question == "In.the.coming.12.months.I.m.planning.to.develop.some.kind.of.first.version.for.a.product.or.a.service" ~ "first version", 
+    question == "In.the.coming.12.months.I.m.planning.to.develop.a.new.business.idea.or.product" ~ "new idea / product", 
+    question == "In.the.coming.12.months.I.m.planning.to.test.my.business.idea.or.product.with.clients.and.employers" ~ "test idea / product", 
+    question == "In.the.coming.12.months.I.m.planning.to.quit.my.job..or.decrease.my.hours..so.I.can.focus.on.my.business.venture.." ~ "quit job / reduce hours", 
+    question == "In.the.coming.12.months.I.m.planning.to.invest.my.own.money.in.my.business.venture." ~ "invest own money", 
+    question == "I.have.a.bank.account.or.planning.to.open.one.in.the.next.12.months." ~ "bank account", 
+    question == "In.the.coming.12.months.I.m.planning.to.purchase.expensive.hardware.for.my.business.venture." ~ "purchase hardware", 
+    question == "In.the.coming.12.months.I.m.planning.to.seek.funding.for.my.plans." ~ "seek funding", 
+    .default = question
+  )) 
+
+construct_dfs[[2]]$`entr. intentions` <- construct_dfs[[2]]$`entr. intentions` %>% 
+    mutate(question = case_when(
+    question == "In.the.coming.12.months.I.want.to.conduct.practical.experiments.to.find.solutions.for.clients.and.employers" ~ "practical experiments", 
+    question == "In.the.coming.12.months.I.m.planning.to.develop.some.kind.of.prototype.for.a.product.or.a.service" ~ "first version", 
+    question =="In.the.coming.12.months.I.m.planning.to.develop.a.new.value.proposition" ~ "new idea / product", 
+    question == "In.the.coming.12.months.I.m.planning.to.test.my.value.proposition.with.clients.and.employers" ~ "test idea / product", 
+    question == "In.the.coming.12.months.I.m.planning.to.quit.my.job..or.decrease.my.hours..so.I.can.focus.on.my.business.venture.." ~ "quit job / reduce hours", 
+    question == "In.the.coming.12.months.I.m.planning.to.invest.my.own.money.in.my.business.venture." ~ "invest own money", 
+    question == "In.the.coming.12.months.I.m.planning.to.open.a.business.bank.account." ~ "bank account", 
+    question == "In.the.coming.12.months.I.m.planning.to.purchase.expensive.hardware.for.my.business.venture." ~ "purchase hardware", 
+    question == "In.the.coming.12.months.I.m.planning.to.seek.funding.for.my.plans." ~ "seek funding", 
+    .default = question
+  ))
+
+construct_dfs[[3]]$`entr. intentions` <- construct_dfs[[3]]$`entr. intentions` %>% 
+    mutate(question = case_when(
+    question == "In.the.coming.12.months.I.want.to.conduct.practical.experiments.to.find.solutions.for.clients.and.employers" ~ "practical experiments", 
+    question == "In.the.coming.12.months.I.m.planning.to.develop.some.kind.of.prototype.for.a.product.or.a.service" ~ "first version", 
+    question =="In.the.coming.12.months.I.m.planning.to.develop.a.new.value.proposition" ~ "new idea / product", 
+    question == "In.the.coming.12.months.I.m.planning.to.test.my.value.proposition.with.clients.and.employers" ~ "test idea / product", 
+    question == "In.the.coming.12.months.I.m.planning.to.quit.my.job..or.decrease.my.hours..so.I.can.focus.on.my.business.venture.." ~ "quit job / reduce hours", 
+    question == "In.the.coming.12.months.I.m.planning.to.invest.my.own.money.in.my.business.venture." ~ "invest own money", 
+    question == "In.the.coming.12.months.I.m.planning.to.open.a.business.bank.account." ~ "bank account", 
+    question == "In.the.coming.12.months.I.m.planning.to.purchase.expensive.hardware.for.my.business.venture." ~ "purchase hardware", 
+    question == "In.the.coming.12.months.I.m.planning.to.seek.funding.for.my.plans." ~ "seek funding", 
+    .default = question
+  ))
+```
+
+```{r}
+intention_dfs <- list(construct_dfs[[1]]$`entr. intentions`, 
+                      construct_dfs[[2]]$`entr. intentions`, 
+                      construct_dfs[[3]]$`entr. intentions`)
+
+names(intention_dfs) <- names(construct_dfs)
+```
+
+```{r}
+intentions_plots <- lapply(intention_dfs, function(intention_df){
+  
+  intention_df %>%
+    ggplot(aes(x = as.numeric(response), fill = question)) +
+      facet_wrap(~question) +
+      scale_fill_viridis_d(option = "magma") +
+      theme(axis.title.y = element_blank(), 
+            legend.position = "none", 
+            panel.background = element_rect(fill = "white")) +
+            scale_y_continuous(breaks = breaks_pretty()) +
+            geom_bar() +
+            coord_flip()
+})
+
+intentions_plots
+
+ggsave(here(images_path, "BEEEZ2024_intentions.png"),  intentions_plots[[1]])
+ggsave(here(images_path, "BWA2024_intentions.png"),   intentions_plots[[2]])
+ggsave(here(images_path, "HOKRLC2024_intentions.png"),intentions_plots[[3]])
+```
+

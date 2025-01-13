@@ -1,0 +1,203 @@
+---
+title: "demogs & descriptives"
+---
+
+```{r}
+library('here')               # file logistics
+library('wordcloud')          # word cloud plotting
+library('RColorBrewer')       # custom color pallette
+library('tidytext')           # text mining
+library('ggdist')             # raincloud plotting
+library('gghalves')           # raincloud plotting
+library('kableExtra')         # table visualization
+library('naniar')             # missingness analysis
+library('forcats')            # reorder bars in bar chart
+library('scales')
+library('tidyverse')          # code logistics
+
+#color scheme
+ciri_colors <- c('#fe7241', '#ae5944', '#543c4a', '#67444a', 'black')
+
+subset_dfs <- readRDS(here("data_", "formatted_data", "subset_dfs.RDS"))
+
+images_path <- here("current_project", "images_")
+```
+
+
+```{r}
+income_dfs <- lapply(subset_dfs, function(subset_df){
+
+  # subset income df
+  T0_df <- subset_df$income
+  # merge with ID
+  T0_df$id <- subset_df$demogs$Just.for.verification..what.s.your.first.name.
+  # create time variable
+  T0_df$time <- "T0"
+  
+  # rename columns
+  T0_df <- T0_df %>%
+    rename(
+      income = What.s.your.current.monthly.income, 
+      income_percentage = Roughly..which.percentage.of.your.income.flows.from.business.or.projects.that.you.own.)
+  
+  # make explicit NAs
+  T0_df[T0_df == "None of your business"] <- NA
+  T0_df[T0_df == "Still none of your business"] <- NA
+  
+  # recode income variable
+  T0_df <- T0_df %>%
+    mutate(income = case_when(
+      income == "Less than €1.000"    ~ 1, 
+      income == "€ 1.000 - € 2.500"   ~ 2,
+      income == "€ 2.500 - € 5.000"   ~ 3, 
+      income == "€ 5.000 - € 7.500"   ~ 4, 
+      income == "€ 7.500 - € 10.000"  ~ 5, 
+      income == "€ 10.000 - € 12.500" ~ 6, 
+      income == "€ 12.500 - € 15.000" ~ 7, 
+      income == "€ 15.000 - € 17.500" ~ 8
+    ))
+  
+    T0_df <- T0_df %>%
+    mutate(income_percentage = case_when(
+      income_percentage == "Less than 10%" ~ 1, 
+      income_percentage == "10% - 20%"     ~ 2,
+      income_percentage == "20% - 30%"     ~ 3, 
+      income_percentage == "30% - 40%"     ~ 4, 
+      income_percentage == "40% - 50%"     ~ 5, 
+      income_percentage == "50% - 60%"     ~ 6, 
+      income_percentage == "60% - 70%"     ~ 7, 
+      income_percentage == "70% - 80%"     ~ 8, 
+      income_percentage == "80% - 90%"     ~ 9, 
+      income_percentage == "90% - 100%"   ~ 10
+    ))
+  
+  return(T0_df)
+})
+```
+
+```{r}
+income_plots <- lapply(income_dfs, function(income_df){
+
+  income_df %>%
+    ggplot(aes(x=time, y=income, fill = time)) +
+      ggdist::stat_halfeye(
+        show.legend = FALSE, 
+        adjust = 1,  # the breaks / bins of histogram
+        width = .5, 
+        justification = -.2,
+        .width = c(.5, .95)
+        ) +
+      scale_fill_manual(values=ciri_colors) +
+        geom_boxplot(
+        show.legend = FALSE,
+        width = .12, 
+        coef = 0, 
+        outlier.color = NA
+      ) +
+      gghalves::geom_half_point(
+        show.legend = FALSE, 
+        side= "1", 
+        size = 4, 
+        range_scale=.25,
+        alpha = .3
+        ) +
+      scale_y_continuous(
+         position = "right",
+         breaks = seq(1, 8, by = 1),
+         labels = c(
+         "<1000€", "1000€-2500€", "2500€-5000€", 
+         "5000€-7500€", "7500€-10000€", "10000€-12500€", 
+         "12500€-15000€", "15000€-17500€")
+       )  +
+    theme(panel.background = element_rect(fill = "white")) +
+    theme(axis.title.y = element_blank(), axis.title.x = element_blank())
+  
+})
+
+ggsave(here(images_path, "BEEEZ2024_income.png"), income_plots[[1]])
+ggsave(here(images_path, "BWA2024_income.png"),   income_plots[[2]])
+ggsave(here(images_path, "HOKRLC2024_income.png"),income_plots[[3]])
+```
+
+```{r}
+income_plots <- lapply(income_dfs, function(income_df){
+
+  income_df %>%
+    ggplot(aes(x=time, y=income_percentage, fill = time)) +
+      ggdist::stat_halfeye(
+        show.legend = FALSE, 
+        adjust = 1,  # the breaks / bins of histogram
+        width = .5, 
+        justification = -.2,
+        .width = c(.5, .95)
+        ) +
+      scale_fill_manual(values=ciri_colors) +
+        geom_boxplot(
+        show.legend = FALSE,
+        width = .12, 
+        coef = 0, 
+        outlier.color = NA
+      ) +
+      gghalves::geom_half_point(
+        show.legend = FALSE, 
+        side= "1", 
+        size = 3.5, 
+        range_scale=.20,
+        alpha = .3
+        ) +
+      scale_y_continuous(
+         position = "right",
+         breaks = seq(1, 10, by = 1),
+         labels = c(
+         "<10%", "10% - 20%", "20% - 30%", 
+         "30% - 40%", "40% - 50%", "50% - 60%", 
+         "60% - 70%", "70% - 80%", "80% - 90%", 
+         "90% - 100%")
+       )  +
+    theme(panel.background = element_rect(fill = "white")) +
+    theme(axis.title.y = element_blank(), axis.title.x = element_blank())
+  
+})
+
+ggsave(here(images_path, "BEEEZ2024_income_perc.png"), income_plots[[1]])
+ggsave(here(images_path, "BWA2024_income_perc.png"),   income_plots[[2]])
+ggsave(here(images_path, "HOKRLC2024_income_perc.png"),income_plots[[3]])
+
+rm(income_plots, income_dfs)
+```
+
+```{r}
+job_dfs <- list(
+  subset_dfs[[2]]$income$Which.of.your.activities.provides.you.with.the.bigger.part.of.your.monthly.income %>% as.data.frame(), 
+  subset_dfs[[3]]$reasons$Which.of.your.activities.provides.you.with.the.bigger.part.of.your.monthly.income %>% as.data.frame())
+
+names(job_dfs) <- names(subset_dfs[2:3])
+
+job_dfs <- lapply(job_dfs, function(df){
+  colnames(df) <- "jobs"
+  return(df)
+})
+```
+
+```{r}
+plot_wordcloud <- function(T0_df, column){
+  
+  words <- T0_df %>% select(column)
+
+  colnames(words) <- "text"
+
+  words <- words %>%
+    unnest_tokens(word, text) %>%
+    count(word, sort=TRUE) 
+
+  wordcloud(words = words$word, freq = words$n, 
+            min.freq = 1, max.words = 200, 
+            random.order = TRUE, rot.per=0.45, 
+            colors = brewer.pal(8, "Dark2"), scale=c(3, .5))
+}
+```
+
+```{r}
+lapply(job_dfs, plot_wordcloud, column = "jobs")
+```
+

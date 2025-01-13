@@ -1,0 +1,102 @@
+---
+title: "demogs & descriptives"
+---
+
+```{r}
+library('here')               # file logistics
+library('wordcloud')          # word cloud plotting
+library('RColorBrewer')       # custom color palette
+library('tidytext')           # text mining
+
+#library('ggdist')             # raincloud plotting
+#library('gghalves')           # raincloud plotting
+
+library('kableExtra')         # table visualization
+#library('naniar')             # missingness analysis
+library('forcats')
+library('scales')
+library('tidyverse')          # code logistics
+
+#color scheme
+ciri_colors <- c('#fe7241', '#ae5944', '#543c4a', '#67444a', 'black')
+
+#datasets:
+subset_dfs <- readRDS(here("data_", "formatted_data", "subset_dfs.RDS"))
+images_path <- here("current_project", "images_")
+```
+
+```{r}
+plot_wordcloud <- function(T0_df, column){
+  
+  words <- T0_df$demogs %>% select(column)
+
+  colnames(words) <- "text"
+
+  words <- words %>%
+    unnest_tokens(word, text) %>%
+    count(word, sort=TRUE) 
+
+  wordcloud(words = words$word, freq = words$n, 
+            min.freq = 1, max.words = 200, 
+            random.order = TRUE, rot.per=0.45, 
+            colors = brewer.pal(8, "Dark2"), scale=c(3, .5))
+}
+
+#plot_wordcloud(subset_dfs[[1]], "What.s.your.professional.title")
+```
+
+```{r}
+# job title word clouds (manually save output)
+lapply(subset_dfs, plot_wordcloud, column = "What.s.your.professional.title")
+```
+
+```{r}
+# city word clouds (manually save output)
+lapply(subset_dfs, plot_wordcloud, column = "What.city.do.you.live.in.")
+
+rm(plot_wordcloud)
+```
+
+
+```{r}
+# bar charts of age bands
+age_plots <- lapply(subset_dfs, function(T0_df){
+  
+  T0_df$demogs <- T0_df$demogs %>% mutate(
+    years = substr(T0_df$demogs$Your.Genesis..., start = 1, stop = 10) %>%
+                    parse_date_time(orders = "%Y-%m-%d"))
+  
+  age <- function(birth, base = Sys.Date()){
+    i <- interval(birth, base)
+    p <- as.period(i)
+    year(p)
+  }
+  
+  T0_df$demogs <- T0_df$demogs %>% mutate(ages = age(years)) %>%
+    mutate(ages = case_when(
+      ages == 0 ~ NA, 
+      ages >= 18 & ages <= 24 ~ "18-24", 
+       ages > 24 & ages <= 34 ~ "25-34", 
+       ages > 34 & ages <= 44 ~ "35-44",
+       ages > 44 & ages <= 54 ~ "45-54",
+       ages > 54 & ages <= 64 ~ "55-64",
+      .default = as.character(ages)
+    ))
+  
+  T0_df$demogs %>%
+    ggplot(aes(as.factor(ages), fill = ages)) +
+    scale_fill_manual(values=ciri_colors) +
+    geom_bar() +
+    coord_flip() +
+    xlab("Age group") +
+    ylab("Count") +
+    theme(legend.position = "none", panel.background = element_rect(fill = "white"))
+  
+})
+
+ggsave(here(images_path, "BEEEZ2024_ages.png"), age_plots[[1]])
+ggsave(here(images_path, "BWA2024_ages.png"), age_plots[[2]])
+ggsave(here(images_path, "HOKRLC2024_ages.png"), age_plots[[3]])
+
+rm(age_plots)
+```

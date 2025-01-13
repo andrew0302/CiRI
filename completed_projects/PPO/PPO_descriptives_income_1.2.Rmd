@@ -176,6 +176,7 @@ df %>%
 
 #rm(skills)
 ```
+
 ```{r}
 columns <- c(skills, "X.")
 df <- T0_df[columns]

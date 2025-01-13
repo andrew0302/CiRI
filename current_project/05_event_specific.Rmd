@@ -1,0 +1,108 @@
+---
+title: "demogs & descriptives"
+---
+
+```{r}
+library('here')               # file logistics
+library('wordcloud')          # word cloud plotting
+library('RColorBrewer')       # custom color pallette
+library('tidytext')           # text mining
+library('ggdist')             # raincloud plotting
+library('gghalves')           # raincloud plotting
+library('kableExtra')         # table visualization
+library('naniar')             # missingness analysis
+library('forcats')            # reorder bars in bar chart
+library('scales')
+library('tidyverse')          # code logistics
+
+#color scheme
+ciri_colors <- c('#fe7241', '#ae5944', '#543c4a', '#67444a', 'black')
+
+subset_dfs <- readRDS(here("data_", "formatted_data", "subset_dfs.RDS"))
+
+images_path <- here("current_project", "images_")
+```
+
+```{r}
+# rename id variable
+subset_dfs$`BEEEZ2024-R=26`$demogs <- subset_dfs$`BEEEZ2024-R=26`$demogs %>% rename(
+  Just.for.verification..what.s.your.name. = Just.for.verification..what.s.your.first.name.
+)
+```
+
+```{r}
+T0_df <- subset_dfs[[1]]$BEE
+T0_df$id <- subset_dfs[[1]]$demogs$Just.for.verification..what.s.your.name.
+
+      # recode all vars
+      T0_df %>% 
+        pivot_longer(cols = !id, names_to = 'question', values_to = 'response') %>%
+        mutate(response = case_when(
+          response == "Very much" ~ 5,
+          response == "Somewhat" ~ 4, 
+          response == "Neutral" ~ 3, 
+          response == "Not really" ~ 2, 
+          response == "Not at all" ~ 1
+        )) %>%
+      ggplot(aes(x = as.numeric(response), fill = question)) +
+        facet_wrap(~question) +
+        scale_fill_viridis_d(option = "magma") +
+        theme(axis.title.y = element_blank(), 
+          legend.position = "none", 
+          panel.background = element_rect(fill = "white")) +
+          scale_y_continuous(breaks = breaks_pretty()) +
+          geom_bar() +
+          coord_flip()
+
+```
+
+```{r}
+income_dfs <- lapply(subset_dfs, function(subset_df){
+
+  # subset income df
+  T0_df <- subset_df$income
+  # merge with ID
+  T0_df$id <- subset_df$demogs$Just.for.verification..what.s.your.name.
+  # create time variable
+  T0_df$time <- "T0"
+  
+  # rename columns
+  T0_df <- T0_df %>%
+    rename(income = What.s.your.current.monthly.income)
+  
+  # make explicit NAs
+  T0_df[T0_df == "None of your business"] <- NA
+  T0_df[T0_df == "Still none of your business"] <- NA
+  
+  return(T0_df)
+})
+```
+
+
+```{r}
+BWA_df <- subset_dfs[[2]]$BWA 
+BWA_df$id <- subset_dfs[[2]]$demogs$Just.for.verification..what.s.your.name.
+BWA_df <- merge(BWA_df, income_dfs[[2]], by = "id")
+BWA_df$income <- factor(BWA_df$income, 
+                  levels = c("Less than €1.000", "€ 1.000 - € 2.500", 
+                  "€ 2.500 - € 5.000", "€ 5.000 - € 7.500"))
+
+BWA_df <- BWA_df %>% mutate(new_deal = case_when(
+  Would.you.like.to.apply.for.the.New.Deal.Scholarship. == "I want to apply for the New Deal Scholarship. If I don't get it I still want be in the program." ~ "If I don't get it I still want be in the program.", 
+  Would.you.like.to.apply.for.the.New.Deal.Scholarship. == "I want to apply for the New Deal Scholarship. If I don't get it I'm out." ~ "If I don't get it I'm out."
+))
+
+
+BWA_df %>%
+  ggplot(aes(x=new_deal, fill = income)) +
+  geom_bar() +
+  scale_fill_manual(values=ciri_colors) +
+  coord_flip() +
+  theme(axis.title.y = element_blank(), 
+          panel.background = element_rect(fill = "white"))
+```
+
+```{r}
+
+```
+

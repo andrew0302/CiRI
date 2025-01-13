@@ -1,0 +1,178 @@
+---
+title: "demogs & descriptives"
+---
+
+```{r}
+library('here')               # file logistics
+library('wordcloud')          # word cloud plotting
+library('RColorBrewer')       # custom color pallette
+library('tidytext')           # text mining
+#library('ggdist')             # raincloud plotting
+#library('gghalves')           # raincloud plotting
+library('kableExtra')         # table visualization
+#library('naniar')             # missingness analysis
+library('forcats')            # reorder bars in bar chart
+library('scales')
+library('tidyverse')          # code logistics
+
+#color scheme
+ciri_colors <- c('#fe7241', '#ae5944', '#543c4a', '#67444a', 'black')
+
+subset_dfs <- readRDS(here("data_", "formatted_data", "subset_dfs.RDS"))
+
+images_path <- here("current_project", "images_")
+```
+
+
+```{r}
+# BEE reasons table
+T0_df <- subset_dfs[[1]]$reasons
+
+colnames(T0_df) <- "Reasons for Participation"
+
+T0_df %>%
+  kbl() %>%
+  kable_styling(bootstrap_options = "striped") %>%
+  save_kable(.,
+  file = here(images_path, "BEEEZ2024_reasons.png"),
+  bs_theme = "simplex",
+  self_contained = TRUE)
+
+rm(T0_df)
+```
+
+```{r}
+format_reasons_columns <- function(T0_df){
+
+  T0_df <- bind_cols(T0_df$demogs$Just.for.verification..what.s.your.name., T0_df$reasons)
+  T0_df[T0_df == ""] <- NA
+  
+  #2
+  T0_df <- T0_df %>% mutate(To.improve.my.personal.skills = case_when(
+    is.na(To.improve.my.personal.skills) ~ 0, 
+    !is.na(To.improve.my.personal.skills) ~ 1))
+  #3
+  T0_df <- T0_df %>% mutate(To.increase.my.income = case_when(
+    is.na(To.increase.my.income) ~ 0, 
+    !is.na(To.increase.my.income) ~ 1))
+  #4
+  T0_df <- T0_df %>% mutate(To.become.a..fulltime..creative.entrepreneur = case_when(
+    is.na(To.become.a..fulltime..creative.entrepreneur) ~ 0, 
+    !is.na(To.become.a..fulltime..creative.entrepreneur) ~ 1))
+  #5  
+  T0_df <- T0_df %>% mutate(To.improve.my.entrepreneurial.skills = case_when(
+    is.na(To.improve.my.entrepreneurial.skills) ~ 0, 
+    !is.na(To.improve.my.entrepreneurial.skills) ~ 1))
+  #6
+  T0_df <- T0_df %>% mutate(To.learn.more.about.entrepreneurialism = case_when(
+    is.na(To.learn.more.about.entrepreneurialism) ~ 0, 
+    !is.na(To.learn.more.about.entrepreneurialism) ~ 1))
+  #7
+  T0_df <- T0_df %>% mutate(To.start.a..creative..company = case_when(
+    is.na(To.start.a..creative..company) ~ 0, 
+    !is.na(To.start.a..creative..company) ~ 1))
+  #8
+  T0_df <- T0_df %>% mutate(To.learn.how.to.better.manage.my.current.creative.business = case_when(
+    is.na(To.learn.how.to.better.manage.my.current.creative.business) ~ 0, 
+    !is.na(To.learn.how.to.better.manage.my.current.creative.business) ~ 1))
+  #9
+  T0_df <- T0_df %>% mutate(To.better.profile.myself.as.an.entrepreneur = case_when(
+    is.na(To.better.profile.myself.as.an.entrepreneur) ~ 0, 
+    !is.na(To.better.profile.myself.as.an.entrepreneur) ~ 1))
+  #10
+  T0_df <- T0_df %>% mutate(To.start.seeing.myself.more.as.an.entrepreneur = case_when(
+    is.na(To.start.seeing.myself.more.as.an.entrepreneur) ~ 0, 
+    !is.na(To.start.seeing.myself.more.as.an.entrepreneur) ~ 1))
+  #11
+  T0_df <- T0_df %>% mutate(Because.I.m.having.difficulty.making.money.from.my.creativity = case_when(
+    is.na(Because.I.m.having.difficulty.making.money.from.my.creativity) ~ 0, 
+    !is.na(Because.I.m.having.difficulty.making.money.from.my.creativity) ~ 1))
+  #12
+  T0_df <- T0_df %>% mutate(Because.I.lack.business.knowhow = case_when(
+    is.na(Because.I.lack.business.knowhow) ~ 0, 
+    !is.na(Because.I.lack.business.knowhow) ~ 1))
+  #13
+  T0_df <- T0_df %>% mutate(Because.the.time.I.spend.on.business.is.hurting.my.creativity = case_when(
+    is.na(Because.the.time.I.spend.on.business.is.hurting.my.creativity) ~ 0, 
+    !is.na(Because.the.time.I.spend.on.business.is.hurting.my.creativity) ~ 1))
+  #14
+  T0_df <- T0_df %>% mutate(Because.I.don.t.have.enough.time.to.develop.a.long.term.strategy = case_when(
+    is.na(Because.I.don.t.have.enough.time.to.develop.a.long.term.strategy) ~ 0, 
+    !is.na(Because.I.don.t.have.enough.time.to.develop.a.long.term.strategy) ~ 1))
+  #15
+  T0_df <- T0_df %>% mutate(Because.I.want.to.put.a.value.on.my.creativity = case_when(
+    is.na(Because.I.want.to.put.a.value.on.my.creativity) ~ 0, 
+    !is.na(Because.I.want.to.put.a.value.on.my.creativity) ~ 1))
+  #16
+  T0_df <- T0_df %>% mutate(Other = case_when(
+    is.na(Other) ~ 0, 
+    !is.na(Other) ~ 1))
+
+  T0_df <- T0_df[1:16] %>% pivot_longer(cols = !`...1`)
+  
+}
+
+#T0_df <- format_reasons_columns(subset_dfs[[3]])
+```
+
+
+```{r}
+reasons_bar_plot <- function(T0_df){
+  
+  T0_df$name <- gsub("\\.", " ", T0_df$name)
+
+  
+  T0_df %>%
+    filter(value > 0) %>%
+    ggplot(aes(fct_rev(fct_infreq(name)), fill = name)) +
+    scale_fill_viridis_d(option = "magma") +
+    geom_bar() +
+    coord_flip() +
+    xlab("Reason") +
+    ylab("Count") +
+    theme(legend.position = "none", panel.background = element_rect(fill = "white")) +
+    scale_y_continuous(breaks = breaks_pretty())
+}  
+```
+
+```{r}
+reasons_dfs <- lapply(subset_dfs[2:3], format_reasons_columns)
+reasons_plots <- lapply(reasons_dfs, reasons_bar_plot)
+
+ggsave(here(images_path, "BWA2024_reasons.png"), reasons_plots[[1]])
+ggsave(here(images_path, "HOKRLC2024_reasons.png"), reasons_plots[[2]])
+
+rm(reasons_plots, format_reasons_columns, reasons_dfs)
+```
+
+```{r}
+component_dfs <- list(
+  subset_dfs[[2]]$reasons$Which.component.of.the.Braenworks.Academy.do.you.consider.most.valuable.to.you.at.this.point. %>% as.data.frame(), 
+  subset_dfs[[3]]$reasons$Which.component.of.this.seminar.do.you.consider.most.valuable.to.you.at.this.point. %>% as.data.frame()
+)
+names(component_dfs) <- names(subset_dfs)[2:3]
+```
+
+```{r}
+component_plots <- lapply(component_dfs, function(df){
+
+  colnames(df) <- "reasons"
+  
+  df %>%
+    ggplot(aes(fct_rev(fct_infreq(reasons)), fill = reasons)) +
+      scale_fill_viridis_d(option = "magma") +
+      geom_bar() +
+      coord_flip() +
+      xlab("Reason") +
+      ylab("Count") +
+      theme(legend.position = "none", panel.background = element_rect(fill = "white")) +
+      scale_y_continuous(breaks = breaks_pretty())
+
+})
+
+ggsave(here(images_path, "BWA2024_component.png"), component_plots[[1]])
+ggsave(here(images_path, "HOKRLC2024_component.png"), component_plots[[2]])
+
+rm(component_dfs, component_plots)
+```
+

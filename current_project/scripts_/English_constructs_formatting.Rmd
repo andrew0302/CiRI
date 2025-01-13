@@ -1,0 +1,109 @@
+---
+title: "English constructs formatting"
+author: "Andrew M. Demetriou"
+---
+
+```{r setup, include=FALSE}
+library('here')
+library('dplyr')
+library('knitr')
+```
+
+# read in data
+
+```{r}
+data_folder <- here("data_", "raw_data")
+files <- c("CWM T0 - BEE EZ 2024 -  Export 20241121 - R=26.csv", 
+           "CWM T0 - BWA 2024 RDAM NL - Export 20241121 - R=18.csv", 
+           "CWM T0 - HOK RLC 2024 - Export 20241121 - R=17.csv")
+```
+
+```{r}
+T0_dfs <- lapply(files, function(file){
+  df <- read.csv(here(data_folder, file))
+})
+  
+names <- list("BEE EZ 2024 - R=26", 
+           "BWA 2024 RDAM NL - R=18", 
+           "HOK RLC 2024 - R= 17")
+
+names(T0_dfs ) <- names
+
+questions <- lapply(T0_dfs, function(df){
+  df <- colnames(df) %>% as.data.frame()
+})
+
+rm(names)
+```
+
+```{r}
+#column_folder <- here("columns_", "input")
+
+# write column names as csv files
+#lapply(seq_along(questions), function(y, n, i) { 
+#  file_name <- here(column_folder, paste(n[[i]], ".csv"))
+#  file_name <- gsub(" ", "", file_name, fixed = TRUE)
+#  write.csv(y[[i]], file_name)
+#  }, y=questions, n=names(questions))
+
+#rm(questions, files, column_folder, data_folder)
+```
+
+```{r}
+column_folder <- here("data_", "columns_", "output")
+
+files <- list.files(here(column_folder))
+
+column_dfs <- lapply(files, function(file){
+  read.csv(here(column_folder, file))
+})
+
+files <- gsub("columns - ", "", files, fixed = TRUE)
+files <- gsub(".csv", "", files, fixed = TRUE)
+
+names(column_dfs) <- files
+
+rm(files, column_folder)
+```
+
+# create subsets of variables for further analysis
+
+```{r}
+subset_dfs <- list()
+
+for(i in 1:length(column_dfs)){
+  # always remove
+  vars <- c("", "consent", "fin")
+  
+  # create list of constructs for each df
+  constructs <- column_dfs[[i]] %>% 
+    select(construct) %>% 
+    filter(! construct %in% vars) %>%
+    unique()
+  
+  # format construct list
+  constructs <- constructs$construct
+  construct_list <- constructs %>% as.list()
+  names(construct_list) <- constructs
+  
+  subset_labels <- lapply(construct_list, function(constructs){
+    df <- column_dfs[[i]] %>% filter(construct == constructs)
+    constructs <- df$column.label
+  })
+
+  subset_dfs[[i]] <- lapply(subset_labels, function(subset){
+    T0_dfs[[i]] %>% select(subset)
+  })
+}
+
+names(subset_dfs) <- names(column_dfs)
+```
+
+```{r}
+path <- here("data_", "formatted_data_")
+
+saveRDS(subset_dfs, here(path, "subset_dfs.RDS"))
+
+rm(subset_dfs, subset_labels, T0_dfs, construct_list, column_dfs, i, constructs, path, vars)
+```
+
