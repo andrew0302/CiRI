@@ -12,6 +12,7 @@ library('gghalves')           # raincloud plotting
 library('kableExtra')         # table visualization
 library('naniar')             # missingness analysis
 library('forcats')            # reorder bars in bar chart
+library('viridisLite')
 library('scales')
 library('tidyverse')          # code logistics
 
@@ -34,8 +35,8 @@ subset_dfs$`BEEEZ2024-R=26`$demogs <- subset_dfs$`BEEEZ2024-R=26`$demogs %>% ren
 T0_df <- subset_dfs[[1]]$BEE
 T0_df$id <- subset_dfs[[1]]$demogs$Just.for.verification..what.s.your.name.
 
-      # recode all vars
-      T0_df %>% 
+# recode all vars
+T0_df <- T0_df %>% 
         pivot_longer(cols = !id, names_to = 'question', values_to = 'response') %>%
         mutate(response = case_when(
           response == "Very much" ~ 5,
@@ -43,18 +44,53 @@ T0_df$id <- subset_dfs[[1]]$demogs$Just.for.verification..what.s.your.name.
           response == "Neutral" ~ 3, 
           response == "Not really" ~ 2, 
           response == "Not at all" ~ 1
-        )) %>%
-      ggplot(aes(x = as.numeric(response), fill = question)) +
-        facet_wrap(~question) +
-        scale_fill_viridis_d(option = "magma") +
-        theme(axis.title.y = element_blank(), 
-          legend.position = "none", 
-          panel.background = element_rect(fill = "white")) +
-          scale_y_continuous(breaks = breaks_pretty()) +
-          geom_bar() +
-          coord_flip()
+        ))
 
+# participant completed questionnaire twice
+Morea_df <- T0_df %>% filter(id == "Morea") %>% group_by(question) %>%
+  mutate(response = mean(response)) %>% unique()
+
+T0_df <- bind_rows(T0_df%>%filter(id != "Morea"), Morea_df)
+
+rm(Morea_df)
 ```
+
+```{r}
+# manually create pallette
+pallette <- inferno(n=12)
+# set of questions
+questions <- T0_df$question %>% unique() %>% as.list()
+```
+
+```{r}
+# create list of individual plots
+plots <- list()
+
+for(i in 1:length(questions)){
+  
+  plots[[i]] <- T0_df %>% filter(question == questions[[i]]) %>%
+    ggplot(aes(x=as.numeric(response))) +
+    scale_y_continuous(breaks = breaks_pretty()) +
+    theme(axis.title.y = element_blank(), 
+      legend.position = "none", 
+      panel.background = element_rect(fill = "white")) +
+    coord_flip() +
+    geom_bar(fill = pallette[i])
+}
+
+names(plots) <- questions
+
+for(i in 1:length(questions)){
+  ggsave(here(images_path, paste0("BEEEZ2024_event_", i, ".png")), plots[[i]])
+}
+```
+
+```{r}
+lapply(questions, function(question){
+  print(str_replace_all(question, "\\.", " "))
+})
+```
+
 
 ```{r}
 income_dfs <- lapply(subset_dfs, function(subset_df){
@@ -100,6 +136,9 @@ BWA_df %>%
   coord_flip() +
   theme(axis.title.y = element_blank(), 
           panel.background = element_rect(fill = "white"))
+
+
+ggsave(here(images_path, "BWA2024_event.png"))
 ```
 
 ```{r}
