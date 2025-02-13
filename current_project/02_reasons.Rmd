@@ -38,6 +38,8 @@ T0_df %>%
   bs_theme = "simplex",
   self_contained = TRUE)
 
+write_csv(T0_df, here(images_path, "BEEEZ2024_reasons.csv"))
+
 rm(T0_df)
 ```
 
