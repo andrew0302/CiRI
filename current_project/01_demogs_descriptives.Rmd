@@ -100,3 +100,38 @@ ggsave(here(images_path, "HOKRLC2024_ages.png"), age_plots[[3]])
 
 rm(age_plots)
 ```
+
+```{r}
+age_dfs <- lapply(subset_dfs, function(T0_df){
+  
+  T0_df$demogs <- T0_df$demogs %>% mutate(
+    years = substr(T0_df$demogs$Your.Genesis..., start = 1, stop = 10) %>%
+                    parse_date_time(orders = "%Y-%m-%d"))
+  
+  age <- function(birth, base = Sys.Date()){
+    i <- interval(birth, base)
+    p <- as.period(i)
+    year(p)
+  }
+  
+  T0_df$demogs <- T0_df$demogs %>% mutate(ages = age(years)) %>%
+    mutate(ages = case_when(
+      ages == 0 ~ NA, 
+      ages >= 18 & ages <= 24 ~ "18-24", 
+       ages > 24 & ages <= 34 ~ "25-34", 
+       ages > 34 & ages <= 44 ~ "35-44",
+       ages > 44 & ages <= 54 ~ "45-54",
+       ages > 54 & ages <= 64 ~ "55-64",
+      .default = as.character(ages)
+    ))
+  })
+```
+
+```{r}
+age_dfs$`BEEEZ2024-R=26`$ages %>% table() %>% prop.table()
+
+age_dfs$`BWA2024RDAMNL-R=18`$ages %>% table() %>% prop.table()
+
+age_dfs$`HOKRLC2024-R=17`$ages %>% table() %>% prop.table()
+```
+

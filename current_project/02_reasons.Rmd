@@ -144,8 +144,24 @@ reasons_plots <- lapply(reasons_dfs, reasons_bar_plot)
 ggsave(here(images_path, "BWA2024_reasons.png"), reasons_plots[[1]])
 ggsave(here(images_path, "HOKRLC2024_reasons.png"), reasons_plots[[2]])
 
-rm(reasons_plots, format_reasons_columns, reasons_dfs)
+rm(reasons_plots, format_reasons_columns)
 ```
+
+```{r}
+df <- reasons_dfs$`BWA2024RDAMNL-R=18` %>%
+  group_by(name) %>%
+  filter(value == 1) %>%
+  count(value) %>% mutate(pct = (n/18)*100) %>%
+  sort(desc(pct))
+df
+
+df <- reasons_dfs$`HOKRLC2024-R=17` %>%
+  group_by(name) %>%
+  filter(value == 1) %>%
+  count(value) %>% summarize(pct = (n/17)*100)
+df
+```
+
 
 ```{r}
 component_dfs <- list(
@@ -154,6 +170,19 @@ component_dfs <- list(
 )
 names(component_dfs) <- names(subset_dfs)[2:3]
 ```
+
+```{r}
+lapply(component_dfs, function(df){
+  colnames(df) <- "component"
+  
+  df %>% 
+    count(component) %>%
+    summarize(n = n/17*100)
+  
+  
+})
+```
+
 
 ```{r}
 component_plots <- lapply(component_dfs, function(df){

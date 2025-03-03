@@ -76,6 +76,19 @@ income_dfs <- lapply(subset_dfs, function(subset_df){
 ```
 
 ```{r}
+lapply(income_dfs, function(df){
+  df %>% select(income) %>% table() %>% prop.table()
+})
+```
+
+```{r}
+lapply(income_dfs, function(df){
+  df %>% select(income_percentage) %>% table() %>% prop.table()
+})
+```
+
+
+```{r}
 income_plots <- lapply(income_dfs, function(income_df){
 
   income_df %>%

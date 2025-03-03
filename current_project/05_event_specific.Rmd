@@ -47,8 +47,10 @@ T0_df <- T0_df %>%
         ))
 
 # participant completed questionnaire twice
-Morea_df <- T0_df %>% filter(id == "Morea") %>% group_by(question) %>%
-  mutate(response = mean(response)) %>% unique()
+Morea_df <- T0_df %>% filter(id == "Morea") %>% 
+  head(12)
+  #group_by(question) %>%
+#  mutate(response = mean(response)) %>% unique()
 
 T0_df <- bind_rows(T0_df%>%filter(id != "Morea"), Morea_df)
 
@@ -63,13 +65,42 @@ questions <- T0_df$question %>% unique() %>% as.list()
 ```
 
 ```{r}
+lapply(questions, function(questions){
+  T0_df %>% filter(questions == question) %>%
+    select(response) %>%
+    table() %>% prop.table()
+})
+```
+
+
+```{r}
+for(i in 1:length(questions)){
+  
+  plots[[i]] <- T0_df %>% filter(question == questions[[i]]) %>%
+    filter(!is.na(response)) %>%
+    ggplot(aes(x=as.factor(response))) +
+    scale_x_discrete(limits = c("1", "2", "3", "4", "5")) +
+    scale_y_continuous(breaks = breaks_pretty()) +
+    theme(axis.title.y = element_blank(), 
+      legend.position = "none", 
+      panel.background = element_rect(fill = "white")) +
+    coord_flip() +
+    geom_bar(fill = pallette[i])
+}
+
+plots
+```
+
+
+```{r}
 # create list of individual plots
 plots <- list()
 
 for(i in 1:length(questions)){
   
   plots[[i]] <- T0_df %>% filter(question == questions[[i]]) %>%
-    ggplot(aes(x=as.numeric(response))) +
+    ggplot(aes(x=as.factor(response))) +
+    scale_x_discrete(limits = c("1", "2", "3", "4", "5")) +
     scale_y_continuous(breaks = breaks_pretty()) +
     theme(axis.title.y = element_blank(), 
       legend.position = "none", 
@@ -142,6 +173,11 @@ ggsave(here(images_path, "BWA2024_event.png"))
 ```
 
 ```{r}
+#BWA_df %>% select(new_deal) %>% table(useNA = "always") %>% prop.table()
+BWA_df %>% filter(new_deal == "If I don't get it I still want be in the program.") %>% select(income) %>% table(useNA = "always") %>% prop.table()
 
+BWA_df %>% filter(new_deal == "If I don't get it I'm out.") %>% select(income) %>% table(useNA = "always") %>% prop.table()
+
+BWA_df$new_deal %>% unique()
 ```
 
